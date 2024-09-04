@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                                       mayumi.mq5 |
+//|                                                       erika.mq5 |
 //|                                                   marcelo kaique |
 //|                                  marcelokaique.andrade@gmail.com |
 //+------------------------------------------------------------------+
@@ -35,49 +35,26 @@ void OnDeinit(const int reason) {
 void OnTick() {
     //---
     CopyRates(_Symbol, PERIOD_CURRENT, 0, 4, velas);
-    // Ordem da mais recente a mais antiga, 0-1-2-3
+    // Ordem da mais recente (atual) a mais antiga, 0-1-2-3
     ArraySetAsSeries(velas, true);
 
     // Toda vez que existir uma nova vela entrar nesse 'if'
     if(TemosNovaVela()) {
-        // Print("Vela Mais Recente, " + TimeToString(velas[0].time));
+        bool isDoji = IsDojiCandle(velas[2].open, velas[2].close, velas[2].high, velas[2].low);
+        if(isDoji) {
 
-        // Checar se a penultima vela é um DOJI
-        bool is_doji = IsDojiCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low);
-        if(is_doji) {
-            doji_founds_count++;
-            // Print("Penultimo Candle é um Doji, " + IntegerToString(doji_founds_count) + " Encontrados...");
+            // DOJI,  1 = compra, 2 = venda
+            int doji_color = GetDojiColor(velas[2].open, velas[2].close);
 
-            // Classificar doji venda ou compra
-            // Se o preço de fechamento do DOJI estiver abaixo do preço de abertura do candle anterior
-            // ele pode ser considerado um sinal de venda.
-
-            if(velas[1].close < velas[2].open) {
-
-                doji_venda_count++;
-                // Print("DOJI TIPO SINAL DE VENDA, Horário: " + TimeToString(velas[1].time) + " | doji_venda_count: " + IntegerToString(doji_venda_count));
-
-                // Conferir se o candle na posição 0, atende aos critérios de força
-                if(IsCandleDeForcaVermelho(velas[0].open, velas[0].close, velas[0].high, velas[0].low, velas[1].high, velas[1].low)) {
-                    Print("! Abra ordem de venda. " + TimeToString(velas[0].time));
-                    Alert("! Abra ordem de venda. " + TimeToString(velas[0].time));
-                    // Aqui você pode adicionar a lógica para abrir uma ordem de venda
+            if(doji_color == 2) {
+                bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
+                if(isRedCandle) {
+                    Print("RED CANDLE FORÇA " + velas[1].time + " RED DOJI " + velas[2].time);
                 }
-
-            }
-            // Se o preço de fechamento do Doji estiver acima do preço de abertura do candle anterior
-            // ele pode ser considerado um sinal de compra
-
-            else if(velas[1].close > velas[2].open) {
-
-                doji_compra_count++;
-                // Print("DOJI TIPO, SINAL DE COMPRA, Horário: " + TimeToString(velas[1].time) + " | doji_compra_count: " + IntegerToString(doji_compra_count));
-
-                // Conferir se o candle na posição 0, atende aos criterios de força
-                if(IsCandleDeForcaVerde(velas[0].open, velas[0].close, velas[0].high, velas[0].low, velas[1].high, velas[1].low)) {
-                    Print("! Abra ordem de compra. " + TimeToString(velas[0].time));
-                    Alert("! Abra ordem de compra. " + TimeToString(velas[0].time));
-                    // Adicionar lógica para abrir uma ordem de compra
+            } else if(doji_color == 1) {
+                bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
+                if(isGreenCandle) {
+                    Print("GREEN CANDLE FORÇA " + velas[1].time + " GREEN DOJI " + velas[2].time);
                 }
             }
         }
@@ -108,79 +85,68 @@ bool TemosNovaVela() {
     //--- se passarmos desta linha, então a barra não é nova; retornar false
     return (false);
 }
-//+------------------------------------------------------------------+
 
-//+------------------------------------------------------------------+
-//| Verifica se é um DOJI (Candle de Indecisão)                      |
-//+------------------------------------------------------------------+
 bool IsDojiCandle(double open, double close, double high, double low) {
-    // Define the pip value for EURUSD (1 pip = 0.0001)
-    double pipValue = 0.0001;
+    double bodySize    = MathAbs(open - close);   // Tamanho do corpo da vela
+    double candleRange = high - low;              // Intervalo total da vela
 
-    // Set the tolerance to 22 pips
-    double tolerance = 22 * pipValue;
+    // Verifica se o corpo da vela é pequeno o suficiente
+    if(bodySize <= 22 * Point()) {
+        double centroCorpo      = (open + close) / 2;   // Centro do corpo da vela
+        double centroVela       = (high + low) / 2;     // Centro do intervalo da vela
+        double diferencaCentros = MathAbs(centroCorpo - centroVela);
 
-    // Rest of the function remains the same
-    bool   isSmallBody = MathAbs(open - close) <= tolerance;
-    double middle      = (high + low) / 2.0;
-    bool   isInMiddle  = (MathAbs(open - middle) <= MathAbs(high - low) / 4.0) &&
-                      (MathAbs(close - middle) <= MathAbs(high - low) / 4.0);
+        // Verifica se o corpo da vela está centralizado
+        if(diferencaCentros <= 0.1 * candleRange) {
+            return true;   // A vela é um doji centralizado
+        }
+    }
 
-    return isSmallBody && isInMiddle;
+    return false;   // A vela não é um doji centralizado
 }
 
-//+------------------------------------------------------------------+
-
-//+------------------------------------------------------------------+
-//| Verifica se é um Candle de Força Vermelho                        |
-//+------------------------------------------------------------------+
-bool IsCandleDeForcaVermelho(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
-    double pipValue = 0.0001;   // Define the pip value for EURUSD (1 pip = 0.0001)
-
-    double corpoCandleDeForca = MathAbs(open - close);
-    double rangeDoji          = dojiHigh - dojiLow;
-    double rangeCandleDeForca = high - low;
-
-    // Condição 1: Corpo do Candle de Força maior ou igual ao range do Doji
-    bool cond1 = corpoCandleDeForca >= rangeDoji;
-
-    // Condição 2: A máxima do Candle de Força deve estar a uma distância máxima de 55 pip do open
-    bool cond2 = MathAbs(high - open) <= 55 * pipValue;
-
-    // Condição 3: A mínima do Candle de Força deve estar a uma distância máxima de 55 pip do close
-    bool cond3 = MathAbs(low - close) <= 55 * pipValue;
-
-    // Condição 4: Corpo do Candle de Força corresponde a 75% do intervalo entre a máxima e a mínima
-    bool cond4 = corpoCandleDeForca >= 0.75 * rangeCandleDeForca;
-
-    // Se todas as condições forem atendidas, é um Candle de Força Vermelho
-    return (cond1 && cond2 && cond3 && cond4);
+int GetDojiColor(double open, double close) {
+    if(close > open) {
+        return 1;   // Doji de compra
+    } else if(close < open) {
+        return 2;   // Doji de venda
+    } else {
+        return 3;   // Preço de abertura e fechamento iguais
+    }
 }
-//+------------------------------------------------------------------+
 
-//+------------------------------------------------------------------+
-//| Verifica se é um Candle de Força Verde                           |
-//+------------------------------------------------------------------+
-bool IsCandleDeForcaVerde(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
-    double pipValue = 0.0001;   // Define the pip value for EURUSD (1 pip = 0.0001)
+bool IsStrongBearishCandle(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
+    // Body size and range of the previous candle (Doji)
+    double prevRange = dojiHigh - dojiLow;
 
-    double corpoCandleDeForca = MathAbs(open - close);
-    double rangeDoji          = dojiHigh - dojiLow;
-    double rangeCandleDeForca = high - low;
+    // Body size of the current candle
+    double bodySize = MathAbs(close - open);
 
-    // Condição 1: Corpo do Candle de Força maior ou igual ao range do Doji
-    bool cond1 = corpoCandleDeForca >= rangeDoji;
+    // Conditions for a strong bearish (red) candle
+    bool isStrongBearish =
+        (close < open) &&                           // Bearish candle
+        (bodySize >= prevRange) &&                  // Body size >= range of the Doji candle
+        (MathAbs(high - open) <= 55 * Point()) &&   // High is close to or equal to the open
+        (MathAbs(low - close) <= 55 * Point()) &&   // Low is close to or equal to the close
+        (bodySize >= 0.75 * (high - low));          // Body is at least 75% of the candle range
 
-    // Condição 2: A máxima do Candle de Força deve estar a uma distância máxima de 1 pip do close
-    bool cond2 = MathAbs(high - close) <= 55 * pipValue;
-
-    // Condição 3: A mínima do Candle de Força deve estar a uma distância máxima de 1 pip do open
-    bool cond3 = MathAbs(low - open) <= 55 * pipValue;
-
-    // Condição 4: Corpo do Candle de Força corresponde a 75% do intervalo entre a máxima e a mínima
-    bool cond4 = corpoCandleDeForca >= 0.75 * rangeCandleDeForca;
-
-    // Se todas as condições forem atendidas, é um Candle de Força Verde
-    return (cond1 && cond2 && cond3 && cond4);
+    return isStrongBearish;
 }
-//+------------------------------------------------------------------+
+
+bool IsStrongBullishCandle(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
+    // Tamanho do corpo e intervalo da vela anterior (Doji)
+    double prevRange = dojiHigh - dojiLow;
+
+    // Tamanho do corpo da vela atual
+    double bodySize = MathAbs(close - open);
+
+    // Condições para uma vela forte de alta (bullish)
+    bool isStrongBullish =
+        (close > open) &&                            // bullish candle
+        (bodySize >= prevRange) &&                   // Tamanho do corpo >= intervalo da vela Doji
+        (MathAbs(low - open) <= 55 * Point()) &&     // Baixa é próxima ou igual à abertura
+        (MathAbs(high - close) <= 55 * Point()) &&   // Alta é próxima ou igual ao fechamento
+        (bodySize >= 0.75 * (high - low));           // Corpo é pelo menos 75% do intervalo da vela
+
+    return isStrongBullish;
+}
