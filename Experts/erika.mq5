@@ -52,12 +52,14 @@ void OnTick() {
                 if(isRedCandle) {
                     Print("RED CANDLE FORÇA " + TimeToString(velas[1].time) + " RED DOJI " + TimeToString(velas[2].time));
                     Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
+                    PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
                 }
             } else if(doji_color == 1) {
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
                     Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
                     Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
+                    PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
                 }
             }
         }
@@ -182,6 +184,7 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
         bool ideal_low_shadow = open_x_low >= 0.4 * candleRange && open_x_low <= 0.6 * candleRange;
 
         if(ideal_low_shadow && ideal_max_shadow && open_x_low != 0 && high_x_close != 0) {
+
             return true;
         }
     } else if(doji_state == 2) {
@@ -196,9 +199,46 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
         bool ideal_low_shadow = close_x_low >= 0.4 * candleRange && close_x_low <= 0.6 * candleRange;
 
         if(ideal_low_shadow && ideal_max_shadow && high_x_open != 0 && close_x_low != 0) {
+
             return true;
         }
     }
 
     return false;   // A vela não é um doji centralizado
+}
+
+// Função para calcular e imprimir as porcentagens
+void PrintShadowPercentages(double open, double close, double high, double low, int doji_type) {
+
+    double upperShadow = 0;
+    double lowerShadow = 0;
+
+    double candleRange = high - low;   // Intervalo total da vela
+    // Diferença entre máxima e o fechamento
+    double high_x_close = (high - close);
+    // Diferença entre abertura e a mínima
+    double open_x_low = (open - low);
+
+    // Dif entre max e a abertura
+    double high_x_open = (high - open);
+    // Dif entre fechamento e a minima
+    double close_x_low = (close - low);
+
+    if(doji_type == 1) {
+        upperShadow = high_x_close;
+        lowerShadow = open_x_low;
+
+    } else if(doji_type == 2) {
+        upperShadow = high_x_open;
+        lowerShadow = close_x_low;
+    }
+
+    if(doji_type == 1 || doji_type == 2) {
+        double upperShadowPercent = (upperShadow / candleRange) * 100.0;
+        double lowerShadowPercent = (lowerShadow / candleRange) * 100.0;
+
+        // Imprime as porcentagens
+        Print("Upper shadow: ", upperShadowPercent, "%");
+        Print("Lower shadow: ", lowerShadowPercent, "%");
+    }
 }
