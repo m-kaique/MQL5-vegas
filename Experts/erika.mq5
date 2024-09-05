@@ -53,6 +53,7 @@ void OnTick() {
                     Print("RED CANDLE FORÇA " + TimeToString(velas[1].time) + " RED DOJI " + TimeToString(velas[2].time));
                     Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
                     PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
+                    doji_venda_count++;
                 }
             } else if(doji_color == 1) {
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
@@ -60,9 +61,12 @@ void OnTick() {
                     Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
                     Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
                     PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
+                    doji_compra_count++;
                 }
             }
         }
+        // Print("Total de Dojis de venda, " + doji_venda_count);
+        // Print("Total de Dojis de compra, " + doji_compra_count);
     }
 }
 //+------------------------------------------------------------------+
@@ -136,11 +140,9 @@ bool IsStrongBearishCandle(double open, double close, double high, double low, d
 
     // Conditions for a strong bearish (red) candle
     bool isStrongBearish =
-        (close < open) &&                           // Bearish candle
-        (bodySize >= prevRange) &&                  // Body size >= range of the Doji candle
-        (MathAbs(high - open) <= 55 * Point()) &&   // High is close to or equal to the open
-        (MathAbs(low - close) <= 55 * Point()) &&   // Low is close to or equal to the close
-        (bodySize >= 0.75 * (high - low));          // Body is at least 75% of the candle range
+        (close < open) &&                    // Bearish candle
+        (bodySize >= prevRange) &&           // Body size >= range of the Doji candle
+        (bodySize >= 0.70 * (high - low));   // Body is at least 75% of the candle range
 
     return isStrongBearish;
 }
@@ -155,11 +157,9 @@ bool IsStrongBullishCandle(double open, double close, double high, double low, d
 
     // Condições para uma vela forte de alta (bullish)
     bool isStrongBullish =
-        (close > open) &&                            // bullish candle
-        (bodySize >= prevRange) &&                   // Tamanho do corpo >= intervalo da vela Doji
-        (MathAbs(low - open) <= 55 * Point()) &&     // Baixa é próxima ou igual à abertura
-        (MathAbs(high - close) <= 55 * Point()) &&   // Alta é próxima ou igual ao fechamento
-        (bodySize >= 0.75 * (high - low));           // Corpo é pelo menos 75% do intervalo da vela
+        (close > open) &&                    // bullish candle
+        (bodySize >= prevRange) &&           // Tamanho do corpo >= intervalo da vela Doji
+        (bodySize >= 0.70 * (high - low));   // Corpo é pelo menos 75% do intervalo da vela
 
     return isStrongBullish;
 }
@@ -180,8 +180,13 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
 
         // Tamanho Ideal do corpo da vela
         // bool idealBody        = bodySize <= 0.20 * candleRange;
-        bool ideal_max_shadow = high_x_close >= 0.4 * candleRange && high_x_close <= 0.6 * candleRange;
-        bool ideal_low_shadow = open_x_low >= 0.4 * candleRange && open_x_low <= 0.6 * candleRange;
+
+        // Last
+        // bool ideal_max_shadow = high_x_close >= 0.3 * candleRange && high_x_close <= 0.6 * candleRange;
+        // bool ideal_low_shadow = open_x_low >= 0.3 * candleRange && open_x_low <= 0.6 * candleRange;
+
+        bool ideal_max_shadow = high_x_close >= 0.25 * candleRange;
+        bool ideal_low_shadow = open_x_low >= 0.25 * candleRange;
 
         if(ideal_low_shadow && ideal_max_shadow && open_x_low != 0 && high_x_close != 0) {
 
@@ -195,8 +200,11 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
 
         // Tamanho Ideal do corpo da vela
         // bool idealBody        = bodySize <= 0.20 * candleRange;
-        bool ideal_max_shadow = high_x_open >= 0.3 * candleRange && high_x_open <= 0.6 * candleRange;
-        bool ideal_low_shadow = close_x_low >= 0.3 * candleRange && close_x_low <= 0.6 * candleRange;
+        //        bool ideal_max_shadow = high_x_open >= 0.3 * candleRange && high_x_open <= 0.6 * candleRange;
+        //       bool ideal_low_shadow = close_x_low >= 0.3 * candleRange && close_x_low <= 0.6 * candleRange;
+
+        bool ideal_max_shadow = high_x_open >= 0.25 * candleRange;
+        bool ideal_low_shadow = close_x_low >= 0.25 * candleRange;
 
         if(ideal_low_shadow && ideal_max_shadow && high_x_open != 0 && close_x_low != 0) {
 
