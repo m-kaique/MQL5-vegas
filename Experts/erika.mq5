@@ -210,6 +210,7 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
 // Função para calcular e imprimir as porcentagens
 void PrintShadowPercentages(double open, double close, double high, double low, int doji_type) {
 
+    double bodySize    = (open - close);   // Tamanho do corpo da vela
     double upperShadow = 0;
     double lowerShadow = 0;
 
@@ -236,9 +237,11 @@ void PrintShadowPercentages(double open, double close, double high, double low, 
     if(doji_type == 1 || doji_type == 2) {
         double upperShadowPercent = (upperShadow / candleRange) * 100.0;
         double lowerShadowPercent = (lowerShadow / candleRange) * 100.0;
+        double bodySizePercent    = MathAbs(bodySize / candleRange) * 100.0;
 
         // Imprime as porcentagens
         Print("Upper shadow: ", upperShadowPercent, "%");
         Print("Lower shadow: ", lowerShadowPercent, "%");
+        Print("Body Size ", bodySizePercent, "%");
     }
 }
