@@ -38,23 +38,26 @@ void OnTick() {
     // Ordem da mais recente (atual) a mais antiga, 0-1-2-3
     ArraySetAsSeries(velas, true);
 
-    // Toda vez que existir uma nova vela entrar nesse 'if'
+    // Toda vez que existir uma nova vela entrar nessa condição
     if(TemosNovaVela()) {
-        bool isDoji = IsDojiCandle(velas[2].open, velas[2].close, velas[2].high, velas[2].low);
+        bool isDoji = IsDojiCandle_dev(velas[2].open, velas[2].close, velas[2].high, velas[2].low);
         if(isDoji) {
 
             // DOJI,  1 = compra, 2 = venda
+            // Identifica o Sinal do DOJI
             int doji_color = GetDojiColor(velas[2].open, velas[2].close);
 
             if(doji_color == 2) {
                 bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isRedCandle) {
-                    Print("RED CANDLE FORÇA " + velas[1].time + " RED DOJI " + velas[2].time);
+                    Print("RED CANDLE FORÇA " + TimeToString(velas[1].time) + " RED DOJI " + TimeToString(velas[2].time));
+                    Print(" Open " + velas[1].open + " Close " + velas[1].close + " High " + velas[1].high + " Low " + velas[1].low);
                 }
             } else if(doji_color == 1) {
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
-                    Print("GREEN CANDLE FORÇA " + velas[1].time + " GREEN DOJI " + velas[2].time);
+                    Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
+                    Print(" Open " + velas[1].open + " Close " + velas[1].close + " High " + velas[1].high + " Low " + velas[1].low);
                 }
             }
         }
@@ -62,7 +65,7 @@ void OnTick() {
 }
 //+------------------------------------------------------------------+
 
-//--- Para Mudança de Candle
+//--- FN Para Mudança de Candle
 bool TemosNovaVela() {
     //--- memoriza o tempo de abertura da ultima barra (vela) numa variável
     static datetime last_time = 0;
@@ -86,18 +89,24 @@ bool TemosNovaVela() {
     return (false);
 }
 
+//--- FN Para Classificar se o candle é um DOJI
 bool IsDojiCandle(double open, double close, double high, double low) {
     double bodySize    = MathAbs(open - close);   // Tamanho do corpo da vela
     double candleRange = high - low;              // Intervalo total da vela
 
+    bool tailOverBody = candleRange > bodySize;
+
+    bool is_valid_shadow     = candleRange >= 20 * Point();
+    bool is_valid_imperfeito = bodySize <= 10 * Point();
+
     // Verifica se o corpo da vela é pequeno o suficiente
-    if(bodySize <= 22 * Point()) {
+    if(is_valid_imperfeito && is_valid_shadow) {
         double centroCorpo      = (open + close) / 2;   // Centro do corpo da vela
         double centroVela       = (high + low) / 2;     // Centro do intervalo da vela
         double diferencaCentros = MathAbs(centroCorpo - centroVela);
 
         // Verifica se o corpo da vela está centralizado
-        if(diferencaCentros <= 0.1 * candleRange) {
+        if(diferencaCentros <= 0.4 * candleRange) {
             return true;   // A vela é um doji centralizado
         }
     }
@@ -115,6 +124,7 @@ int GetDojiColor(double open, double close) {
     }
 }
 
+//--- FN Para Classificar Candle com Força de Baixa
 bool IsStrongBearishCandle(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
     // Body size and range of the previous candle (Doji)
     double prevRange = dojiHigh - dojiLow;
@@ -133,6 +143,7 @@ bool IsStrongBearishCandle(double open, double close, double high, double low, d
     return isStrongBearish;
 }
 
+//--- FN Para Classificar Candle com Força de Alta
 bool IsStrongBullishCandle(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
     // Tamanho do corpo e intervalo da vela anterior (Doji)
     double prevRange = dojiHigh - dojiLow;
@@ -149,4 +160,45 @@ bool IsStrongBullishCandle(double open, double close, double high, double low, d
         (bodySize >= 0.75 * (high - low));           // Corpo é pelo menos 75% do intervalo da vela
 
     return isStrongBullish;
+}
+
+//--- FN Para Classificar se o candle é um DOJI
+bool IsDojiCandle_dev(double open, double close, double high, double low) {
+
+    int doji_state = GetDojiColor(open, close);
+
+    double bodySize    = MathAbs(open - close);   // Tamanho do corpo da vela
+    double candleRange = high - low;              // Intervalo total da vela
+
+    if(doji_state == 1) {
+        // Dif entre max e o fechamento
+        bool high_x_close = MathAbs(high - close);
+        // Dif entre abertura e a minima
+        bool open_x_low = MathAbs(open - low);
+
+        // Tamanho Ideal do corpo da vela
+        bool idealBody        = bodySize <= 0.15 * candleRange;
+        bool ideal_max_shadow = high_x_close >= 0.4 * candleRange;
+        bool ideal_low_shadow = open_x_low >= 0.4 * candleRange;
+
+        if(ideal_low_shadow && ideal_max_shadow && idealBody) {
+            return true;
+        }
+    } else if(doji_state == 2) {
+        // Dif entre max e a abertura
+        bool high_x_open = MathAbs(high - open);
+        // Dif entre fechamento e a minima
+        bool close_x_low = MathAbs(close - low);
+
+        // Tamanho Ideal do corpo da vela
+        bool idealBody        = bodySize <= 0.15 * candleRange;
+        bool ideal_max_shadow = high_x_open >= 0.4 * candleRange;
+        bool ideal_low_shadow = close_x_low >= 0.4 * candleRange;
+
+        if(ideal_low_shadow && ideal_max_shadow && idealBody) {
+            return true;
+        }
+    }
+
+    return false;   // A vela não é um doji centralizado
 }
