@@ -51,13 +51,13 @@ void OnTick() {
                 bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isRedCandle) {
                     Print("RED CANDLE FORÇA " + TimeToString(velas[1].time) + " RED DOJI " + TimeToString(velas[2].time));
-                    Print(" Open " + velas[1].open + " Close " + velas[1].close + " High " + velas[1].high + " Low " + velas[1].low);
+                    Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
                 }
             } else if(doji_color == 1) {
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
                     Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
-                    Print(" Open " + velas[1].open + " Close " + velas[1].close + " High " + velas[1].high + " Low " + velas[1].low);
+                    Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
                 }
             }
         }
