@@ -195,8 +195,8 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
 
         // Tamanho Ideal do corpo da vela
         // bool idealBody        = bodySize <= 0.20 * candleRange;
-        bool ideal_max_shadow = high_x_open >= 0.4 * candleRange && high_x_open <= 0.6 * candleRange;
-        bool ideal_low_shadow = close_x_low >= 0.4 * candleRange && close_x_low <= 0.6 * candleRange;
+        bool ideal_max_shadow = high_x_open >= 0.3 * candleRange && high_x_open <= 0.6 * candleRange;
+        bool ideal_low_shadow = close_x_low >= 0.3 * candleRange && close_x_low <= 0.6 * candleRange;
 
         if(ideal_low_shadow && ideal_max_shadow && high_x_open != 0 && close_x_low != 0) {
 
