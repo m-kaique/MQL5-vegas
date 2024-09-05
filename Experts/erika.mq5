@@ -167,35 +167,35 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
 
     int doji_state = GetDojiColor(open, close);
 
-    double bodySize    = MathAbs(open - close);   // Tamanho do corpo da vela
-    double candleRange = high - low;              // Intervalo total da vela
+    double bodySize    = (open - close);   // Tamanho do corpo da vela
+    double candleRange = high - low;       // Intervalo total da vela
 
     if(doji_state == 1) {
         // Dif entre max e o fechamento
-        bool high_x_close = MathAbs(high - close);
+        double high_x_close = (high - close);
         // Dif entre abertura e a minima
-        bool open_x_low = MathAbs(open - low);
+        double open_x_low = (open - low);
 
         // Tamanho Ideal do corpo da vela
-        bool idealBody        = bodySize <= 0.15 * candleRange;
-        bool ideal_max_shadow = high_x_close >= 0.4 * candleRange;
-        bool ideal_low_shadow = open_x_low >= 0.4 * candleRange;
+        // bool idealBody        = bodySize <= 0.20 * candleRange;
+        bool ideal_max_shadow = high_x_close >= 0.4 * candleRange && high_x_close <= 0.6 * candleRange;
+        bool ideal_low_shadow = open_x_low >= 0.4 * candleRange && open_x_low <= 0.6 * candleRange;
 
-        if(ideal_low_shadow && ideal_max_shadow && idealBody) {
+        if(ideal_low_shadow && ideal_max_shadow && open_x_low != 0 && high_x_close != 0) {
             return true;
         }
     } else if(doji_state == 2) {
         // Dif entre max e a abertura
-        bool high_x_open = MathAbs(high - open);
+        double high_x_open = (high - open);
         // Dif entre fechamento e a minima
-        bool close_x_low = MathAbs(close - low);
+        double close_x_low = (close - low);
 
         // Tamanho Ideal do corpo da vela
-        bool idealBody        = bodySize <= 0.15 * candleRange;
-        bool ideal_max_shadow = high_x_open >= 0.4 * candleRange;
-        bool ideal_low_shadow = close_x_low >= 0.4 * candleRange;
+        // bool idealBody        = bodySize <= 0.20 * candleRange;
+        bool ideal_max_shadow = high_x_open >= 0.4 * candleRange && high_x_open <= 0.6 * candleRange;
+        bool ideal_low_shadow = close_x_low >= 0.4 * candleRange && close_x_low <= 0.6 * candleRange;
 
-        if(ideal_low_shadow && ideal_max_shadow && idealBody) {
+        if(ideal_low_shadow && ideal_max_shadow && high_x_open != 0 && close_x_low != 0) {
             return true;
         }
     }
