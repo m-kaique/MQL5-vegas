@@ -11,14 +11,8 @@ MqlRates velas[];   // Variável para armazenar velas
 MqlTick  tick;      // variável para armazenar ticks
 
 int doji_founds_count = 0;
-
-int doji_venda_count   = 0;
-int doji_venda_sucesso = 0;
-
-int doji_compra_sucesso = 0;
-int doji_compra_count   = 0;
-
-int doji_state_color = 99;
+int doji_venda_count  = 0;
+int doji_compra_count = 0;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -49,16 +43,12 @@ void OnTick() {
         bool isDoji = IsDojiCandle_dev(velas[2].open, velas[2].close, velas[2].high, velas[2].low);
         if(isDoji) {
 
-            doji_founds_count++;
             // DOJI,  1 = compra, 2 = venda
-            // int doji_color = GetDojiColor(velas[2].open, velas[2].close);
-            // Print("doji_color in TEMOS VELA IS: " + GetDojiColor(velas[2].open, velas[2].close));
+            int doji_color = GetDojiColor(velas[2].open, velas[2].close);
 
             // RED SIGNAL
-            if(GetDojiColor(velas[2].open, velas[2].close) == 2) {
-
-                doji_venda_count++;
-
+            if(doji_color == 2) {
+                Print("RED DOJI");
                 bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isRedCandle) {
                     // Print("RED CANDLE FORÇA " + TimeToString(velas[1].time) + " RED DOJI " + TimeToString(velas[2].time));
@@ -79,21 +69,19 @@ void OnTick() {
                     double openMinusClose          = MathAbs(velas[0].open - velas[1].close);
                     bool   isOpenAtLeastOnePipLess = (openMinusClose) >= pipSize && (openMinusClose) <= pipSize * 2;
 
-                    Print("is sell ABERTURA: " + velas[0].open + "X Fechamento Anterior: " + velas[1].close + "diff: " + openMinusClose + "Condição: " + isOpenAtLeastOnePipLess);
+                    // Print("is sell ABERTURA: " + velas[0].open + "X Fechamento Anterior: " + velas[1].close + "diff: " + openMinusClose + "Condição: " + isOpenAtLeastOnePipLess);
 
                     if(isOpenLessEqualsLastClose || isOpenAtLeastOnePipLess) {
-                        doji_venda_sucesso++;
-                        Print("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
+                        // Print("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
                     }
                 }
-            } else if(GetDojiColor(velas[2].open, velas[2].close) == 1) {
-                doji_compra_count++;
-                // Print("!!!!!!!!!!!!!!!!!!!!");
-                // Print("!!!!!!!!!!!!!!!!!!!! GREEN DOJI OK!");
+            } else if(doji_color == 1) {
+                Print("!!!!!!!!!!!!!!!!!!!!");
+                Print("!!!!!!!!!!!!!!!!!!!! GREEN DOJI OK!");
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
 
-                    //  Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
+                    Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
                     //  Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
                     // PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
 
@@ -114,18 +102,16 @@ void OnTick() {
                     double closeMinusOpen          = MathAbs(velas[1].close - velas[0].open);
                     bool   isOpenAtLeastOnePipLess = (closeMinusOpen) >= pipSize && (closeMinusOpen) <= pipSize * 2;
 
-                    Print("is buy ABERTURA: " + velas[0].open + " X Fechamento Anterior: " + velas[1].close + " diff: " + closeMinusOpen + "Condição: " + isOpenAtLeastOnePipLess);
+                    // Print("is buy ABERTURA: " + velas[0].open + " X Fechamento Anterior: " + velas[1].close + " diff: " + closeMinusOpen + "Condição: " + isOpenAtLeastOnePipLess);
                     // Print("close<=open: " + isOpenMoreEqualsLastClose);
 
                     if(isOpenMoreEqualsLastClose || isOpenAtLeastOnePipLess) {
-                        doji_compra_sucesso++;
                         Print("Abrir uma ordem de Compra...!");
                     }
                 }
             }
         }
     }
-    Print("Total Doji: " + doji_founds_count + " | Doji Venda: " + doji_venda_count + "| Doji Compra: " + doji_compra_count + "| Doji Venda Sucesso: " + doji_venda_sucesso + "| Doji Compra Sucesso : " + doji_compra_sucesso);
 }
 //+------------------------------------------------------------------+
 
@@ -179,9 +165,9 @@ bool IsDojiCandle(double open, double close, double high, double low) {
 }
 
 int GetDojiColor(double open, double close) {
-    if(close >= open) {
+    if(close > open) {
         return 1;   // Doji de compra
-    } else if(close <= open) {
+    } else if(close < open) {
         return 2;   // Doji de venda
     } else {
         return 3;   // Preço de abertura e fechamento iguais
@@ -231,9 +217,7 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
     double candleRange = high - low;       // Intervalo total da vela
 
     if(doji_state == 1) {
-
-        // Print("GREEN DOJI, IS DOJI FN!");
-        //  Dif entre max e o fechamento
+        // Dif entre max e o fechamento
         double high_x_close = (high - close);
         // Dif entre abertura e a minima
         double open_x_low = (open - low);
@@ -260,7 +244,6 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
         }
 
         if(is_valid_shadow && open_x_low != 0 && high_x_close != 0) {
-            doji_state_color = doji_state;
             return true;
         }
     } else if(doji_state == 2) {
