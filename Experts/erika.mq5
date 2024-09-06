@@ -25,7 +25,7 @@ int doji_state_color = 99;
 //+------------------------------------------------------------------+
 int OnInit() {
     //---
-
+    Alert("Procurando Por Oportunidades...");
     //---
     return (INIT_SUCCEEDED);
 }
@@ -84,6 +84,7 @@ void OnTick() {
                     if(isOpenLessEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_venda_sucesso++;
                         Print("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
+                        Alert("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
                     }
                 }
             } else if(GetDojiColor(velas[2].open, velas[2].close) == 1) {
@@ -120,6 +121,7 @@ void OnTick() {
                     if(isOpenMoreEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_compra_sucesso++;
                         Print("Abrir uma ordem de Compra...!");
+                        Alert("Abrir uma ordem de Compra...!");
                     }
                 }
             }
