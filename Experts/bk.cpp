@@ -65,22 +65,24 @@ void OnTick() {
 
                     // Obtém o valor de 1 pip dinamicamente para o símbolo atual
                     double pipSize                 = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
-                    double openMinusClose          = MathAbs(velas[0].open - velas[1].close);
+                    double openMinusClose          = velas[0].open - velas[1].close;
                     bool   isOpenAtLeastOnePipLess = (openMinusClose) >= pipSize && (openMinusClose) <= pipSize * 2;
 
                     Print("ABERTURA: " + velas[0].open + "X Fechamento Anterior: " + velas[1].close + "diff: " + openMinusClose + "Condição: " + isOpenAtLeastOnePipLess);
 
                     if(isOpenLessEqualsLastClose || isOpenAtLeastOnePipLess) {
-                        // Print("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
+                        Print("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
                     }
                 }
-            } else if(doji_color == 1) {
+            }
+            // GREEN SIGNAL
+            else if(doji_color == 1) {
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
 
-                    // Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
-                    //  Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
-                    // PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
+                    Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
+                    Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
+                    PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
 
                     doji_compra_count++;
 
@@ -90,18 +92,16 @@ void OnTick() {
 
                     // Abertura do Candle Atual é igual ao fechamento do candle de força?
 
-                    bool isOpenMoreEqualsLastClose = velas[1].close <= velas[0].open;
+                    bool isOpenMoreEqualsLastClose = velas[0].open >= velas[1].close;
 
                     // Abertura do Candle Atual é pelo menos 1 pip menor que o fechamento anterior?
 
                     // Obtém o valor de 1 pip dinamicamente para o símbolo atual
                     double pipSize                 = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
-                    double closeMinusOpen          = MathAbs(velas[1].close - velas[0].open);
+                    double closeMinusOpen          = velas[1].close - velas[0].open;
                     bool   isOpenAtLeastOnePipLess = (closeMinusOpen) >= pipSize && (closeMinusOpen) <= pipSize * 2;
 
-                    Print("ABERTURA: " + velas[0].open + " X Fechamento Anterior: " + velas[1].close + " diff: " + closeMinusOpen + "Condição: " + isOpenAtLeastOnePipLess);
-                    Print("close<=open: " + isOpenMoreEqualsLastClose);
-
+                    Print("ABERTURA: " + velas[0].open + " X Fechamento Anterior: " + velas[1].close + "diff: " + closeMinusOpen + "Condição: " + isOpenAtLeastOnePipLess);
                     if(isOpenMoreEqualsLastClose || isOpenAtLeastOnePipLess) {
                         Print("Abrir uma ordem de Compra...!");
                     }
