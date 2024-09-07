@@ -1,29 +1,76 @@
 //+------------------------------------------------------------------+
-//|                                                       erika.mq5 |
-//|                                                   marcelo kaique |
+//|                                                       erika.mq5  |
+//|                                                   Marcelo Kaique |
 //|                                  marcelokaique.andrade@gmail.com |
 //+------------------------------------------------------------------+
 #property copyright "marcelo kaique"
 #property link "marcelokaique.andrade@gmail.com"
 #property version "1.00"
 
-MqlRates velas[];   // Variável para armazenar velas
-MqlTick  tick;      // variável para armazenar ticks
+//+------------------------------------------------------------------+
+//| Sessão de Includes                                               |
+//+------------------------------------------------------------------+
 
-int doji_founds_count = 0;
+//+------------------------------------------------------------------+
+//| Sessão de Declaração de Variáveis                                |
+//+------------------------------------------------------------------+
+MqlRates velas[];                    // Variável para armazenar velas
+MqlTick  tick;                       // variável para armazenar ticks
+int      doji_founds_count   = 0;    // Variável Para Guardar A quantidade Total de DOJIS.
+int      doji_venda_count    = 0;    // Variável Para Guardar A quantidade de DOJIS de Venda Encontrados.
+int      doji_venda_sucesso  = 0;    // Variável Para Guardar A quantidade de DOJIS de Compra com Candle de Força Vermelha Encontrados.
+int      doji_compra_sucesso = 0;    // Variável Para Guardar A quantidade de DOJIS de Compra com Candle de Força Verde Encontrados.
+int      doji_compra_count   = 0;    // Variável Para Guardar A quantidade de DOJIS de Compra Encontrados
+int      doji_state_color    = 99;   // Variável Para Sinalizar a Tendência (Verde ou Vermelha) do DOJI.
 
-int doji_venda_count   = 0;
-int doji_venda_sucesso = 0;
+sinput string            s1;                                   //-----------Médias Móveis-------------
+input int                mm_rapida_periodo = 3;                // Periodo Média Rápida
+input int                mm_lenta_periodo  = 9;                // Periodo Média Lenta
+input ENUM_TIMEFRAMES    mm_tempo_grafico  = PERIOD_CURRENT;   // Tempo Gráfico
+input ENUM_MA_METHOD     mm_metodo         = MODE_EMA;         // Método
+input ENUM_APPLIED_PRICE mm_preco          = PRICE_CLOSE;      // Preço Aplicado
+//+------------------------------------------------------------------+
+//|  Variáveis para os indicadores                                   |
+//+------------------------------------------------------------------+
+//--- Médias Móveis
+// RÁPIDA - menor período
+int    mm_rapida_Handle;     // Handle controlador da média móvel rápida
+double mm_rapida_Buffer[];   // Buffer para armazenamento dos dados das médias
 
-int doji_compra_sucesso = 0;
-int doji_compra_count   = 0;
+// LENTA - maior período
+int    mm_lenta_Handle;     // Handle controlador da média móvel lenta
+double mm_lenta_Buffer[];   // Buffer para armazenamento dos dados das médias
 
-int doji_state_color = 99;
+// RÁPIDA Força - menor período
+int    mm_rapida_Handle_forca;     // Handle controlador da média móvel rápida
+double mm_rapida_força_Buffer[];   // Buffer para armazenamento dos dados das médias
 
+// LENTA Força- maior período
+int    mm_lenta_Handle_forca;     // Handle controlador da média móvel lenta
+double mm_lenta_força_Buffer[];   // Buffer para armazenamento dos dados das médias
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
+
+    mm_rapida_Handle = iMA(_Symbol, mm_tempo_grafico, mm_rapida_periodo, 0, mm_metodo, mm_preco);
+    mm_lenta_Handle  = iMA(_Symbol, mm_tempo_grafico, mm_lenta_periodo, 0, mm_metodo, mm_preco);
+
+    mm_rapida_Handle_forca = iMA(_Symbol, mm_tempo_grafico, mm_rapida_periodo, 1, mm_metodo, mm_preco);
+    mm_lenta_Handle_forca  = iMA(_Symbol, mm_tempo_grafico, mm_lenta_periodo, 1, mm_metodo, mm_preco);
+
+    if(mm_rapida_Handle < 0 || mm_lenta_Handle < 0) {
+        Alert("Erro ao tentar criar Handles para o indicador - erro: ", GetLastError(), "!");
+        return (-1);
+    }
+
+    // Para adicionar no gráfico o indicador:
+    ChartIndicatorAdd(0, 0, mm_rapida_Handle);
+    ChartIndicatorAdd(0, 0, mm_lenta_Handle);
+    ChartIndicatorAdd(0, 0, mm_rapida_Handle_forca);
+    ChartIndicatorAdd(0, 0, mm_lenta_Handle_forca);
+    //---
+
     //---
     Alert("Procurando Por Oportunidades...");
     //---
@@ -34,19 +81,45 @@ int OnInit() {
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason) {
     //---
+    IndicatorRelease(mm_rapida_Handle);
+    IndicatorRelease(mm_lenta_Handle);
+    IndicatorRelease(mm_rapida_Handle_forca);
+    IndicatorRelease(mm_lenta_Handle_forca);
 }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick() {
-    //---
+    // Copiar um vetor de dados tamanho três para o vetor mm_Buffer
+    CopyBuffer(mm_rapida_Handle, 0, 0, 4, mm_rapida_Buffer);
+    CopyBuffer(mm_lenta_Handle, 0, 0, 4, mm_lenta_Buffer);
+    ArraySetAsSeries(mm_rapida_Buffer, true);
+    ArraySetAsSeries(mm_lenta_Buffer, true);
+
+    // Copiar um vetor de dados tamanho três para o vetor mm_Buffer_força
+    CopyBuffer(mm_rapida_Handle_forca, 0, 0, 4, mm_rapida_força_Buffer);
+    CopyBuffer(mm_lenta_Handle_forca, 0, 0, 4, mm_lenta_força_Buffer);
+    ArraySetAsSeries(mm_rapida_força_Buffer, true);
+    ArraySetAsSeries(mm_lenta_força_Buffer, true);
+
+    // Alimentar com dados variável de tick
+    SymbolInfoTick(_Symbol, tick);
+    //
     CopyRates(_Symbol, PERIOD_CURRENT, 0, 4, velas);
     // Ordem da mais recente (atual) a mais antiga, 0-1-2-3
     ArraySetAsSeries(velas, true);
 
     // Toda vez que existir uma nova vela entrar nessa condição
+    //---
     if(TemosNovaVela()) {
+        bool is_valid_MM_compra = mm_rapida_Buffer[0] > mm_rapida_Buffer[1] &&
+                                  mm_lenta_Buffer[0] > mm_lenta_Buffer[1];
+
+        bool is_valid_MM_venda = mm_rapida_Buffer[0] < mm_rapida_Buffer[1] &&
+                                 mm_lenta_Buffer[0] < mm_lenta_Buffer[1];
+
         bool isDoji = IsDojiCandle_dev(velas[2].open, velas[2].close, velas[2].high, velas[2].low);
+
         if(isDoji) {
 
             doji_founds_count++;
@@ -79,12 +152,17 @@ void OnTick() {
                     double openMinusClose          = MathAbs(velas[0].open - velas[1].close);
                     bool   isOpenAtLeastOnePipLess = (openMinusClose) >= pipSize && (openMinusClose) <= pipSize * 2;
 
-                    Print("is sell ABERTURA: " + velas[0].open + "X Fechamento Anterior: " + velas[1].close + "diff: " + openMinusClose + "Condição: " + isOpenAtLeastOnePipLess);
+                    // Print("is sell ABERTURA: " + DoubleToString(velas[0].open) + "X Fechamento Anterior: " + DoubleToString(velas[1].close) + "diff: " + DoubleToString(openMinusClose) + "Condição: " + (string)isOpenAtLeastOnePipLess);
 
                     if(isOpenLessEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_venda_sucesso++;
-                        Print("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
-                        Alert("Abrir uma ordem de Venda...!" + _Symbol + " - " + SYMBOL_POINT);
+                        if(is_valid_MM_venda) {
+                            Print("Abrir uma ordem de Venda...!");
+                            Alert("Abrir uma ordem de Venda...!");
+                        }
+
+                        // Alert("Abrir uma ordem de Venda...!" + _Symbol + " - " + (string)SYMBOL_POINT);
+                        // Exibir o valor do M9 no diário (opcional)
                     }
                 }
             } else if(GetDojiColor(velas[2].open, velas[2].close) == 1) {
@@ -115,23 +193,28 @@ void OnTick() {
                     double closeMinusOpen          = MathAbs(velas[1].close - velas[0].open);
                     bool   isOpenAtLeastOnePipLess = (closeMinusOpen) >= pipSize && (closeMinusOpen) <= pipSize * 2;
 
-                    Print("is buy ABERTURA: " + velas[0].open + " X Fechamento Anterior: " + velas[1].close + " diff: " + closeMinusOpen + "Condição: " + isOpenAtLeastOnePipLess);
-                    // Print("close<=open: " + isOpenMoreEqualsLastClose);
+                    // Print("is buy ABERTURA: " + DoubleToString(velas[0].open) + " X Fechamento Anterior: " + DoubleToString(velas[1].close) + " diff: " + DoubleToString(closeMinusOpen) + "Condição: " + (string)isOpenAtLeastOnePipLess);
+                    //  Print("close<=open: " + isOpenMoreEqualsLastClose);
 
                     if(isOpenMoreEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_compra_sucesso++;
-                        Print("Abrir uma ordem de Compra...!");
-                        Alert("Abrir uma ordem de Compra...!");
+
+                        if(is_valid_MM_compra) {
+                            Print("Abrir uma ordem de Compra...!");
+                            Alert("Abrir uma ordem de Compra...!");
+                        }
                     }
                 }
             }
         }
     }
-    Print("Total Doji: " + doji_founds_count + " | Doji Venda: " + doji_venda_count + "| Doji Compra: " + doji_compra_count + "| Doji Venda Sucesso: " + doji_venda_sucesso + "| Doji Compra Sucesso : " + doji_compra_sucesso);
+    // Print("Total Doji: " + IntegerToString(doji_founds_count) + " | Doji Venda: " + IntegerToString(doji_venda_count) + "| Doji Compra: " + IntegerToString(doji_compra_count) + "| Doji Venda Sucesso: " + IntegerToString(doji_venda_sucesso) + "| Doji Compra Sucesso : " + IntegerToString(doji_compra_sucesso));
 }
 //+------------------------------------------------------------------+
 
-//--- FN Para Mudança de Candle
+//+------------------------------------------------------------------+
+//| Fn Para Detectar Quando Uma Nova Vela Aparece                    |
+//+------------------------------------------------------------------+
 bool TemosNovaVela() {
     //--- memoriza o tempo de abertura da ultima barra (vela) numa variável
     static datetime last_time = 0;
@@ -155,32 +238,11 @@ bool TemosNovaVela() {
     return (false);
 }
 
-//--- FN Para Classificar se o candle é um DOJI
-bool IsDojiCandle(double open, double close, double high, double low) {
-    double bodySize    = MathAbs(open - close);   // Tamanho do corpo da vela
-    double candleRange = high - low;              // Intervalo total da vela
-
-    bool tailOverBody = candleRange > bodySize;
-
-    bool is_valid_shadow     = candleRange >= 20 * Point();
-    bool is_valid_imperfeito = bodySize <= 10 * Point();
-
-    // ##DEPRECATED##Verifica se o corpo da vela é pequeno o suficiente
-    if(is_valid_imperfeito && is_valid_shadow) {
-        double centroCorpo      = (open + close) / 2;   // Centro do corpo da vela
-        double centroVela       = (high + low) / 2;     // Centro do intervalo da vela
-        double diferencaCentros = MathAbs(centroCorpo - centroVela);
-
-        // Verifica se o corpo da vela está centralizado
-        if(diferencaCentros <= 0.4 * candleRange) {
-            return true;   // A vela é um doji centralizado
-        }
-    }
-
-    return false;   // A vela não é um doji centralizado
-}
-
+//+------------------------------------------------------------------+
+//| Fn Para Detectar Se o DOJI é Verde ou Vermelho                   |
+//+------------------------------------------------------------------+
 int GetDojiColor(double open, double close) {
+
     if(close >= open) {
         return 1;   // Doji de compra
     } else if(close <= open) {
@@ -190,7 +252,9 @@ int GetDojiColor(double open, double close) {
     }
 }
 
-//--- FN Para Classificar Candle com Força de Baixa
+//+------------------------------------------------------------------+
+//| Fn Para Classificar Candle de Força de Baixa                     |
+//+------------------------------------------------------------------+
 bool IsStrongBearishCandle(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
     // Body size and range of the previous candle (Doji)
     double prevRange = dojiHigh - dojiLow;
@@ -207,7 +271,9 @@ bool IsStrongBearishCandle(double open, double close, double high, double low, d
     return isStrongBearish;
 }
 
-//--- FN Para Classificar Candle com Força de Alta
+//+------------------------------------------------------------------+
+//| Fn Para Classificar Candle de Força de Alta                      |
+//+------------------------------------------------------------------+
 bool IsStrongBullishCandle(double open, double close, double high, double low, double dojiHigh, double dojiLow) {
     // Tamanho do corpo e intervalo da vela anterior (Doji)
     double prevRange = dojiHigh - dojiLow;
@@ -224,7 +290,10 @@ bool IsStrongBullishCandle(double open, double close, double high, double low, d
     return isStrongBullish;
 }
 
-//--- FN Para Classificar se o candle é um DOJI
+//+------------------------------------------------------------------+
+//| Fn Para Classificar Candle Tipo DOJI                             |
+//+------------------------------------------------------------------+
+
 bool IsDojiCandle_dev(double open, double close, double high, double low) {
 
     int doji_state = GetDojiColor(open, close);
@@ -292,8 +361,7 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
             }
         }
 
-        if(is_valid_shadow && high_x_open != 0 && close_x_low != 0) {
-
+        if(is_valid_shadow) {
             return true;
         }
     }
@@ -301,7 +369,9 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
     return false;   // A vela não é um doji centralizado
 }
 
-// Função para calcular e imprimir as porcentagens
+//+------------------------------------------------------------------+
+//| Fn Para Calcular e Informar Porcentagens de Sombra do DOJI       |
+//+------------------------------------------------------------------+
 void PrintShadowPercentages(double open, double close, double high, double low, int doji_type) {
 
     double bodySize    = (open - close);   // Tamanho do corpo da vela
@@ -334,8 +404,8 @@ void PrintShadowPercentages(double open, double close, double high, double low, 
         double bodySizePercent    = MathAbs(bodySize / candleRange) * 100.0;
 
         // Imprime as porcentagens
-        Print("Upper shadow: ", upperShadowPercent, "%");
-        Print("Lower shadow: ", lowerShadowPercent, "%");
-        Print("Body Size ", bodySizePercent, "%");
+        // Print("Upper shadow: ", upperShadowPercent, "%");
+        // Print("Lower shadow: ", lowerShadowPercent, "%");
+        // Print("Body Size ", bodySizePercent, "%");
     }
 }
