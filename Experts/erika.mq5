@@ -29,6 +29,13 @@ input int                mm_lenta_periodo  = 9;                // Periodo Média
 input ENUM_TIMEFRAMES    mm_tempo_grafico  = PERIOD_CURRENT;   // Tempo Gráfico
 input ENUM_MA_METHOD     mm_metodo         = MODE_EMA;         // Método
 input ENUM_APPLIED_PRICE mm_preco          = PRICE_CLOSE;      // Preço Aplicado
+
+sinput string s2;                      //-----------Candle de Força -------------
+input double  str_candle_size = 0.7;   // Tamanho Min do Corpo (%)
+
+sinput string s3;                                // -----------Candle de Indecisão -------------
+input double  indecision_candle_shadow = 0.25;   // Tamanho Min de Cada Sombra (%)
+
 //+------------------------------------------------------------------+
 //|  Variáveis para os indicadores                                   |
 //+------------------------------------------------------------------+
@@ -80,6 +87,7 @@ int OnInit() {
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason) {
+    PrintFinalLog();
     //---
     IndicatorRelease(mm_rapida_Handle);
     IndicatorRelease(mm_lenta_Handle);
@@ -124,8 +132,6 @@ void OnTick() {
 
             doji_founds_count++;
             // DOJI,  1 = compra, 2 = venda
-            // int doji_color = GetDojiColor(velas[2].open, velas[2].close);
-            // Print("doji_color in TEMOS VELA IS: " + GetDojiColor(velas[2].open, velas[2].close));
 
             // RED SIGNAL
             if(GetDojiColor(velas[2].open, velas[2].close) == 2) {
@@ -134,13 +140,13 @@ void OnTick() {
 
                 bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isRedCandle) {
-                    // Print("RED CANDLE FORÇA " + TimeToString(velas[1].time) + " RED DOJI " + TimeToString(velas[2].time));
-                    // Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
-                    // PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
+
                     doji_venda_count++;
 
                     /**
-                     * VERMELHO: Candle atual tem que ter a abertura no mesmo valor do fechamento ou a abaixo ou um pouco bem pouco acima do fechamento**/
+                     * VERMELHO: Candle atual tem que ter a abertura no mesmo valor do fechamento
+                     * ou abaixo ou um pouco bem pouco acima do fechamento
+                     **/
 
                     // Abertura do Candle Atual é igual ao fechamento do candle de força?
                     bool isOpenLessEqualsLastClose = velas[0].open <= velas[1].close;
@@ -152,55 +158,43 @@ void OnTick() {
                     double openMinusClose          = MathAbs(velas[0].open - velas[1].close);
                     bool   isOpenAtLeastOnePipLess = (openMinusClose) >= pipSize && (openMinusClose) <= pipSize * 2;
 
-                    // Print("is sell ABERTURA: " + DoubleToString(velas[0].open) + "X Fechamento Anterior: " + DoubleToString(velas[1].close) + "diff: " + DoubleToString(openMinusClose) + "Condição: " + (string)isOpenAtLeastOnePipLess);
-
                     if(isOpenLessEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_venda_sucesso++;
                         if(is_valid_MM_venda) {
-                            Print("Abrir uma ordem de Venda...!");
+                            Print("+-----------------------------------------------------------------------+");
+                            Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
                             Alert("Abrir uma ordem de Venda...!");
                         }
-
-                        // Alert("Abrir uma ordem de Venda...!" + _Symbol + " - " + (string)SYMBOL_POINT);
-                        // Exibir o valor do M9 no diário (opcional)
                     }
                 }
             } else if(GetDojiColor(velas[2].open, velas[2].close) == 1) {
                 doji_compra_count++;
-                // Print("!!!!!!!!!!!!!!!!!!!!");
-                // Print("!!!!!!!!!!!!!!!!!!!! GREEN DOJI OK!");
+
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
 
-                    //  Print("GREEN CANDLE FORÇA " + TimeToString(velas[1].time) + " GREEN DOJI " + TimeToString(velas[2].time));
-                    //  Print(" Open " + velas[2].open + " Close " + velas[2].close + " High " + velas[2].high + " Low " + velas[2].low);
-                    // PrintShadowPercentages(velas[2].open, velas[2].close, velas[2].high, velas[2].low, doji_color);
-
                     doji_compra_count++;
 
-                    // velas[0]
                     /**
-                     * VERDE: Candle atual tem que ter a abertura no mesmo valor do fechamento ou a cima do candle de força, ou um pouco bem pouco abaixo do fechamento**/
+                     * VERDE: Candle atual tem que ter a abertura no mesmo valor do fechamento,
+                     * acima do candle de força, ou um pouco bem pouco abaixo do fechamento
+                     **/
 
-                    // Abertura do Candle Atual é igual ao fechamento do candle de força?
-
+                    // Checa se Abertura do Candle Atual é igual ao fechamento do candle de força
                     bool isOpenMoreEqualsLastClose = velas[1].close <= velas[0].open;
 
-                    // Abertura do Candle Atual é pelo menos 1 pip menor que o fechamento anterior?
-
-                    // Obtém o valor de 1 pip dinamicamente para o símbolo atual
+                    // Checa se Abertura do Candle Atual é pelo menos 1 pip menor que o fechamento anterior
                     double pipSize                 = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
                     double closeMinusOpen          = MathAbs(velas[1].close - velas[0].open);
                     bool   isOpenAtLeastOnePipLess = (closeMinusOpen) >= pipSize && (closeMinusOpen) <= pipSize * 2;
-
-                    // Print("is buy ABERTURA: " + DoubleToString(velas[0].open) + " X Fechamento Anterior: " + DoubleToString(velas[1].close) + " diff: " + DoubleToString(closeMinusOpen) + "Condição: " + (string)isOpenAtLeastOnePipLess);
-                    //  Print("close<=open: " + isOpenMoreEqualsLastClose);
 
                     if(isOpenMoreEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_compra_sucesso++;
 
                         if(is_valid_MM_compra) {
-                            Print("Abrir uma ordem de Compra...!");
+
+                            Print("+-----------------------------------------------------------------------+");
+                            Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
                             Alert("Abrir uma ordem de Compra...!");
                         }
                     }
@@ -208,7 +202,6 @@ void OnTick() {
             }
         }
     }
-    // Print("Total Doji: " + IntegerToString(doji_founds_count) + " | Doji Venda: " + IntegerToString(doji_venda_count) + "| Doji Compra: " + IntegerToString(doji_compra_count) + "| Doji Venda Sucesso: " + IntegerToString(doji_venda_sucesso) + "| Doji Compra Sucesso : " + IntegerToString(doji_compra_sucesso));
 }
 //+------------------------------------------------------------------+
 
@@ -264,9 +257,9 @@ bool IsStrongBearishCandle(double open, double close, double high, double low, d
 
     // Conditions for a strong bearish (red) candle
     bool isStrongBearish =
-        (close < open) &&                    // Bearish candle
-        (bodySize >= prevRange) &&           // Body size >= range of the Doji candle
-        (bodySize >= 0.70 * (high - low));   // Body is at least 75% of the candle range
+        (close < open) &&                               // Bearish candle
+        (bodySize >= prevRange) &&                      // Body size >= range of the Doji candle
+        (bodySize >= str_candle_size * (high - low));   // Body is at least 75% of the candle range
 
     return isStrongBearish;
 }
@@ -283,9 +276,9 @@ bool IsStrongBullishCandle(double open, double close, double high, double low, d
 
     // Condições para uma vela forte de alta (bullish)
     bool isStrongBullish =
-        (close > open) &&                    // bullish candle
-        (bodySize >= prevRange) &&           // Tamanho do corpo >= intervalo da vela Doji
-        (bodySize >= 0.70 * (high - low));   // Corpo é pelo menos 75% do intervalo da vela
+        (close > open) &&                               // bullish candle
+        (bodySize >= prevRange) &&                      // Tamanho do corpo >= intervalo da vela Doji
+        (bodySize >= str_candle_size * (high - low));   // Corpo é pelo menos 75% do intervalo da vela
 
     return isStrongBullish;
 }
@@ -314,16 +307,16 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
         bool is_valid_shadow = false;
 
         if(bodySize >= 0) {
-            bool ideal_max_shadow = high_x_close >= 0.25 * candleRange;
-            bool ideal_low_shadow = open_x_low >= 0.25 * candleRange;
+            bool ideal_max_shadow = high_x_close >= indecision_candle_shadow * candleRange;
+            bool ideal_low_shadow = open_x_low >= indecision_candle_shadow * candleRange;
 
             if(ideal_low_shadow && ideal_max_shadow) {
                 is_valid_shadow = true;
             }
 
         } else if(bodySize == 0) {
-            bool ideal_max_shadow = high - close >= 0.25 * high;
-            bool ideal_low_shadow = low - open >= 0.25 * low;
+            bool ideal_max_shadow = high - close >= indecision_candle_shadow * high;
+            bool ideal_low_shadow = low - open >= indecision_candle_shadow * low;
 
             if(ideal_low_shadow && ideal_max_shadow) {
                 is_valid_shadow = true;
@@ -340,21 +333,21 @@ bool IsDojiCandle_dev(double open, double close, double high, double low) {
         // Dif entre fechamento e a minima
         double close_x_low = (close - low);
 
-        // Caso o corpo "bodySize" da Vela Seja MAIOR QUE 0
-
         bool is_valid_shadow = false;
 
         if(bodySize > 0) {
-            bool ideal_max_shadow = high_x_open >= 0.25 * candleRange;
-            bool ideal_low_shadow = close_x_low >= 0.25 * candleRange;
+            // Caso o corpo "bodySize" da Vela Seja MAIOR QUE 0
+            bool ideal_max_shadow = high_x_open >= indecision_candle_shadow * candleRange;
+            bool ideal_low_shadow = close_x_low >= indecision_candle_shadow * candleRange;
 
             if(ideal_low_shadow && ideal_low_shadow) {
                 is_valid_shadow = true;
             }
 
         } else if(bodySize == 0) {
-            bool ideal_max_shadow = high - close >= 0.25 * high;
-            bool ideal_low_shadow = low - open >= 0.25 * low;
+            // Caso o corpo "bodySize" da Vela igual a 0
+            bool ideal_max_shadow = high - close >= indecision_candle_shadow * high;
+            bool ideal_low_shadow = low - open >= indecision_candle_shadow * low;
 
             if(ideal_low_shadow && ideal_low_shadow) {
                 is_valid_shadow = true;
@@ -408,4 +401,36 @@ void PrintShadowPercentages(double open, double close, double high, double low, 
         // Print("Lower shadow: ", lowerShadowPercent, "%");
         // Print("Body Size ", bodySizePercent, "%");
     }
+}
+
+//+------------------------------------------------------------------+
+//| Fn Para Exibir Logs ao Final da Simulação                         |
+//+------------------------------------------------------------------+
+void PrintFinalLog() {
+    PrintDojiReport();
+}
+
+//+------------------------------------------------------------------+
+//| Fn Para Calcular Quantidade de Indecições Filtradas              |
+//+------------------------------------------------------------------+
+void PrintDojiReport() {
+    double doji_venda_porcentagem  = 0.0;
+    double doji_compra_porcentagem = 0.0;
+
+    if(doji_founds_count != 0) {
+        doji_venda_porcentagem  = ((double)doji_venda_sucesso / doji_founds_count) * 100;
+        doji_compra_porcentagem = ((double)doji_compra_sucesso / doji_founds_count) * 100;
+    }
+
+    Print("#########################################################################");
+    Print("##   RELAÇÃO DE INDECIÇÕES ENCONTRADOS POR ERIKA ");
+    Print("##                                       ");
+    Print("##   TIPO VENDA: " + IntegerToString(doji_venda_count));
+    Print("##   Chegaram até a ordem: " + IntegerToString(doji_venda_sucesso) + "|  %: " + DoubleToString(doji_venda_porcentagem, 2) + " %");
+    Print("##                                       ");
+    Print("##   TIPO COMPRA: " + IntegerToString(doji_compra_count));
+    Print("##   Chegaram até a ordem: " + IntegerToString(doji_compra_sucesso) + "| %: " + DoubleToString(doji_compra_porcentagem, 2) + " %");
+    Print("##                                       ");
+    Print("##   TOTAL ENCONTRADO: " + IntegerToString(doji_founds_count));
+    Print("#########################################################################");
 }
