@@ -10,7 +10,8 @@
 //+------------------------------------------------------------------+
 //| Sessão de Includes                                               |
 //+------------------------------------------------------------------+
-
+#include <Trade/Trade.mqh>   // Importa a classe CTrade
+CTrade trade;
 //+------------------------------------------------------------------+
 //| Sessão de Declaração de Variáveis                                |
 //+------------------------------------------------------------------+
@@ -36,6 +37,14 @@ input double  str_candle_size = 0.6;   // Tamanho Min do Corpo (%)
 sinput string s3;                                // -----------Candle de Indecisão -------------
 input double  indecision_candle_shadow = 0.20;   // Tamanho Min de Cada Sombra (%)
 
+sinput string s4;                        // -----------Opções de Trade -------------
+input double  _lotes           = 0.01;   // Quantidade de Lote
+input double  _lucroDesejado   = 1.0;    // Meta de Lucro (ex. 1 dólar = 1.0)
+input double  _perda_maxima    = 0.50;   // Limite de Perda (ex. 1 dólar = 1.0)
+input int     _slippage        = 3;      // Tolerância máxima de slippage (desvio de preço) em pontos
+input double  __spreadMaximo   = 20;     // Spread máximo permitido antes de abrir uma ordem
+input int     _take_profit_int = 20;     // mod take profit
+double        _spreadMaximo    = __spreadMaximo * Point();
 //+------------------------------------------------------------------+
 //|  Variáveis para os indicadores                                   |
 //+------------------------------------------------------------------+
@@ -141,7 +150,6 @@ void OnTick() {
 
                 bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isRedCandle) {
-                    // Print("Força Venda" + velas[1].time);
 
                     doji_venda_count++;
 
@@ -158,14 +166,55 @@ void OnTick() {
                     // Obtém o valor de 1 pip dinamicamente para o símbolo atual
                     double pipSize                 = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
                     double openMinusClose          = MathAbs(velas[0].open - velas[1].close);
-                    bool   isOpenAtLeastOnePipLess = (openMinusClose) >= pipSize && (openMinusClose) <= pipSize * 2;
+                    bool   isOpenAtLeastOnePipLess = (openMinusClose) >= pipSize;
 
                     if(isOpenLessEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_venda_sucesso++;
                         if(is_valid_MM_venda) {
-                            // Print("+-----------------------------------------------------------------------+");
-                            // Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
-                            // Alert("Abrir uma ordem de Venda...!");
+                            // Verifica o spread atual
+                            double askPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);   // Preço Ask (para compras)
+                            double bidPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);   // Preço Bid (para vendas)
+                            double spread   = askPrice - bidPrice;                     // Spread atual
+
+                            // Se o spread for maior que o spread máximo permitido, não abra a ordem
+                            if(spread > _spreadMaximo) {
+                                Print("Spread atual (", spread, ") maior que o spread máximo permitido (", _spreadMaximo, "). Ordem não será aberta.");
+                                return;
+                            }
+
+                            if(TemosMargem(_lotes)) {
+
+                                // Utiliza a classe CTrade para abrir uma ordem Sell Limit no preço da máxima do candle anterior (CANDLE DE FORÇA)
+                                double lowCandleAnterior = velas[1].low;
+                                double precoVenda        = lowCandleAnterior - (3 * Point());
+
+                                // BID - ASK
+                                double askPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);   // Preço Ask (para compras)
+                                double bidPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);   // Preço Bid (para vendas)
+                                                                                           //-
+                                                                                           // Verificar se o preço Bid atual é válido
+                                if(bidPrice <= lowCandleAnterior) {
+                                    // Definir Stop Loss e Take Profit como exemplos (você pode ajustar conforme sua estratégia)
+                                    double stopLossVenda   = precoVenda + 10 * Point();                 // SL 10 pontos acima
+                                    double takeProfitVenda = precoVenda - _take_profit_int * Point();   // TP 20 pontos abaixo
+
+                                    // Verifica se o preço BID está dentro do slippage permitido
+                                    if(MathAbs(bidPrice - precoVenda) <= _slippage * Point()) {
+                                        // Enviar a ordem Buy Stop
+                                        if(trade.SellStop(_lotes, precoVenda, _Symbol, 0, takeProfitVenda, ORDER_TIME_GTC, 0, "Sell Stop 3 pontos abaixo do valor Bid da Minima")) {
+                                            Print("Ordem Sell Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
+                                        } else {
+                                            Print("Erro ao enviar ordem Sell Stop: ", trade.ResultRetcode());
+                                        }
+                                    } else {
+                                        Print("Slippage maior que o permitido na ordem de Venda. Ordem não será enviada.");
+                                    }
+                                } else {
+                                    Print("Preço Bid (", bidPrice, ") não atingiu o preço de venda desejado (", precoVenda, ").");
+                                }
+                            }
+                        } else {
+                            Print("Margem Insuficiente para Venda.");
                         }
                     }
                 }
@@ -174,7 +223,7 @@ void OnTick() {
 
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
-                    Print("Força Compra" + velas[1].time);
+
                     doji_compra_count++;
 
                     /**
@@ -188,16 +237,59 @@ void OnTick() {
                     // Checa se Abertura do Candle Atual é pelo menos 1 pip menor que o fechamento anterior
                     double pipSize                 = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
                     double closeMinusOpen          = MathAbs(velas[1].close - velas[0].open);
-                    bool   isOpenAtLeastOnePipLess = (closeMinusOpen) >= pipSize && (closeMinusOpen) <= pipSize * 2;
+                    bool   isOpenAtLeastOnePipLess = (closeMinusOpen) >= pipSize;
 
                     if(isOpenMoreEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_compra_sucesso++;
 
                         if(is_valid_MM_compra) {
+                            // Verifica o spread atual
+                            double askPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);   // Preço Ask (para compras)
+                            double bidPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);   // Preço Bid (para vendas)
+                            double spread   = askPrice - bidPrice;                     // Spread atual
 
-                            // Print("+-----------------------------------------------------------------------+");
-                            // Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
-                            // Alert("Abrir uma ordem de Compra...!");
+                            // Se o spread for maior que o spread máximo permitido, não abra a ordem
+                            if(spread > _spreadMaximo) {
+                                Print("Spread atual (", spread, ") maior que o spread máximo permitido (", _spreadMaximo, "). Ordem não será aberta.");
+                                return;
+                            }
+
+                            if(TemosMargem(_lotes)) {
+
+                                // Utiliza a classe CTrade para abrir uma ordem Buy Limit no preço da máxima do candle anterior (CANDLE DE FORÇA)
+                                double maxCandleAnterior = velas[1].high;
+                                double precoCompra       = maxCandleAnterior + (3 * Point());
+                                // double takeprofit        = CalcularTakeProfit(precoCompra, _lucroDesejado, _lotes);
+                                //  Calcular o Stop Loss para limitar a perda a 0,50 dólares (50 cents)
+                                // double stopLoss = CalcularStopLoss(precoCompra, _perda_maxima, _lotes);
+
+                                // BID - ASK
+                                double askPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);   // Preço Ask (para compras)
+                                double bidPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);   // Preço Bid (para vendas)
+                                                                                           //-
+                                                                                           // Verificar se o preço Ask atual é válido
+                                if(askPrice >= maxCandleAnterior) {
+                                    // Definir Stop Loss e Take Profit como exemplos (você pode ajustar conforme sua estratégia)
+                                    double stopLossCompra   = precoCompra - 10 * Point();                 // SL 10 pontos abaixo
+                                    double takeProfitCompra = precoCompra + _take_profit_int * Point();   // TP 20 pontos acima
+
+                                    // Verifica se o preço Ask está dentro do slippage permitido
+                                    if(MathAbs(askPrice - precoCompra) <= _slippage * Point()) {
+                                        // Enviar a ordem Buy Stop
+                                        if(trade.BuyStop(_lotes, precoCompra, _Symbol, 0, takeProfitCompra, ORDER_TIME_GTC, 0, "Buy Stop 3 pontos acima do valor Ask da máxima")) {
+                                            Print("Ordem Buy Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
+                                        } else {
+                                            Print("Erro ao enviar ordem Buy Stop: ", trade.ResultRetcode());
+                                        }
+                                    } else {
+                                        Print("Slippage maior que o permitido na ordem de compra. Ordem não será enviada.");
+                                    }
+                                } else {
+                                    Print("Preço Ask (", askPrice, ") não atingiu o preço de compra desejado (", precoCompra, ").");
+                                }
+                            }
+                        } else {
+                            Print("Margem Insuficiente para Compra.");
                         }
                     }
                 }
@@ -419,4 +511,36 @@ void CalcularPercentuaisIndecisao(double open, double high, double low, double c
         percentualPavioSuperior = (pavioSuperior / tamanhoTotal) * 100;
         percentualPavioInferior = (pavioInferior / tamanhoTotal) * 100;
     }
+}
+
+bool TemosMargem(double volume) {
+    return true;
+}
+
+// Função para calcular o preço do Take Profit
+double CalcularTakeProfit(double precoEntrada, double lucroDesejado, double volume) {
+    double tickSize  = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);    // Tamanho do tick
+    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);   // Valor de cada tick
+
+    // Calcular quantos ticks são necessários para atingir o lucro desejado
+    double ticksNecessarios = lucroDesejado / (tickValue * volume);
+
+    // Calcular o preço do Take Profit
+    double takeProfit = precoEntrada + (ticksNecessarios * tickSize);
+
+    return takeProfit;
+}
+
+// Função para calcular o preço do Stop Loss
+double CalcularStopLoss(double precoEntrada, double perdaDesejada, double volume) {
+    double tickSize  = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);    // Tamanho do tick
+    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);   // Valor de cada tick
+
+    // Calcular quantos ticks são necessários para atingir a perda desejada
+    double ticksNecessarios = perdaDesejada / (tickValue * volume);
+
+    // Calcular o preço do Stop Loss
+    double stopLoss = precoEntrada - (ticksNecessarios * tickSize);
+
+    return stopLoss;
 }
