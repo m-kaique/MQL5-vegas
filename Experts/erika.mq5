@@ -31,10 +31,10 @@ input ENUM_MA_METHOD     mm_metodo         = MODE_EMA;         // Método
 input ENUM_APPLIED_PRICE mm_preco          = PRICE_CLOSE;      // Preço Aplicado
 
 sinput string s2;                      //-----------Candle de Força -------------
-input double  str_candle_size = 0.7;   // Tamanho Min do Corpo (%)
+input double  str_candle_size = 0.6;   // Tamanho Min do Corpo (%)
 
 sinput string s3;                                // -----------Candle de Indecisão -------------
-input double  indecision_candle_shadow = 0.25;   // Tamanho Min de Cada Sombra (%)
+input double  indecision_candle_shadow = 0.20;   // Tamanho Min de Cada Sombra (%)
 
 //+------------------------------------------------------------------+
 //|  Variáveis para os indicadores                                   |
@@ -136,10 +136,12 @@ void OnTick() {
             // RED SIGNAL
             if(GetDojiColor(velas[2].open, velas[2].close) == 2) {
 
+                // Print("Indesição" + velas[2].time);
                 doji_venda_count++;
 
                 bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isRedCandle) {
+                    // Print("Força Venda" + velas[1].time);
 
                     doji_venda_count++;
 
@@ -161,9 +163,9 @@ void OnTick() {
                     if(isOpenLessEqualsLastClose || isOpenAtLeastOnePipLess) {
                         doji_venda_sucesso++;
                         if(is_valid_MM_venda) {
-                            Print("+-----------------------------------------------------------------------+");
-                            Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
-                            Alert("Abrir uma ordem de Venda...!");
+                            // Print("+-----------------------------------------------------------------------+");
+                            // Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
+                            // Alert("Abrir uma ordem de Venda...!");
                         }
                     }
                 }
@@ -172,7 +174,7 @@ void OnTick() {
 
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
-
+                    Print("Força Compra" + velas[1].time);
                     doji_compra_count++;
 
                     /**
@@ -193,9 +195,9 @@ void OnTick() {
 
                         if(is_valid_MM_compra) {
 
-                            Print("+-----------------------------------------------------------------------+");
-                            Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
-                            Alert("Abrir uma ordem de Compra...!");
+                            // Print("+-----------------------------------------------------------------------+");
+                            // Print("MM: Atual: " + DoubleToString(mm_rapida_Buffer[0]) + " MM Força: " + DoubleToString(mm_rapida_Buffer[1]));
+                            // Alert("Abrir uma ordem de Compra...!");
                         }
                     }
                 }
@@ -254,11 +256,12 @@ bool IsStrongBearishCandle(double open, double close, double high, double low, d
 
     // Body size of the current candle
     double bodySize = MathAbs(close - open);
+    double range    = high - low;
 
     // Conditions for a strong bearish (red) candle
     bool isStrongBearish =
         (close < open) &&                               // Bearish candle
-        (bodySize >= prevRange) &&                      // Body size >= range of the Doji candle
+        (range >= prevRange) &&                         // range size >= range of the Doji candle
         (bodySize >= str_candle_size * (high - low));   // Body is at least 75% of the candle range
 
     return isStrongBearish;
@@ -273,11 +276,12 @@ bool IsStrongBullishCandle(double open, double close, double high, double low, d
 
     // Tamanho do corpo da vela atual
     double bodySize = MathAbs(close - open);
+    double range    = high - low;
 
     // Condições para uma vela forte de alta (bullish)
     bool isStrongBullish =
         (close > open) &&                               // bullish candle
-        (bodySize >= prevRange) &&                      // Tamanho do corpo >= intervalo da vela Doji
+        (range >= prevRange) &&                         // range >= intervalo da vela Doji
         (bodySize >= str_candle_size * (high - low));   // Corpo é pelo menos 75% do intervalo da vela
 
     return isStrongBullish;
@@ -289,77 +293,30 @@ bool IsStrongBullishCandle(double open, double close, double high, double low, d
 
 bool IsDojiCandle_dev(double open, double close, double high, double low) {
 
-    int doji_state = GetDojiColor(open, close);
+    int    doji_state = GetDojiColor(open, close);
+    double percentualCorpo, percentualPavioSuperior, percentualPavioInferior;
 
-    double bodySize    = (open - close);   // Tamanho do corpo da vela
-    double candleRange = high - low;       // Intervalo total da vela
+    // Calcula os percentuais
+    CalcularPercentuaisIndecisao(open, high, low, close, percentualCorpo, percentualPavioSuperior, percentualPavioInferior, doji_state);
 
-    if(doji_state == 1) {
-
-        // Print("GREEN DOJI, IS DOJI FN!");
-        //  Dif entre max e o fechamento
-        double high_x_close = (high - close);
-        // Dif entre abertura e a minima
-        double open_x_low = (open - low);
-
-        // Caso o corpo "bodySize" da Vela Seja MAIOR QUE 0
-
-        bool is_valid_shadow = false;
-
-        if(bodySize >= 0) {
-            bool ideal_max_shadow = high_x_close >= indecision_candle_shadow * candleRange;
-            bool ideal_low_shadow = open_x_low >= indecision_candle_shadow * candleRange;
-
-            if(ideal_low_shadow && ideal_max_shadow) {
-                is_valid_shadow = true;
-            }
-
-        } else if(bodySize == 0) {
-            bool ideal_max_shadow = high - close >= indecision_candle_shadow * high;
-            bool ideal_low_shadow = low - open >= indecision_candle_shadow * low;
-
-            if(ideal_low_shadow && ideal_max_shadow) {
-                is_valid_shadow = true;
-            }
-        }
-
-        if(is_valid_shadow && open_x_low != 0 && high_x_close != 0) {
-            doji_state_color = doji_state;
-            return true;
-        }
-    } else if(doji_state == 2) {
-        // Dif entre max e a abertura
-        double high_x_open = (high - open);
-        // Dif entre fechamento e a minima
-        double close_x_low = (close - low);
-
-        bool is_valid_shadow = false;
-
-        if(bodySize > 0) {
-            // Caso o corpo "bodySize" da Vela Seja MAIOR QUE 0
-            bool ideal_max_shadow = high_x_open >= indecision_candle_shadow * candleRange;
-            bool ideal_low_shadow = close_x_low >= indecision_candle_shadow * candleRange;
-
-            if(ideal_low_shadow && ideal_low_shadow) {
-                is_valid_shadow = true;
-            }
-
-        } else if(bodySize == 0) {
-            // Caso o corpo "bodySize" da Vela igual a 0
-            bool ideal_max_shadow = high - close >= indecision_candle_shadow * high;
-            bool ideal_low_shadow = low - open >= indecision_candle_shadow * low;
-
-            if(ideal_low_shadow && ideal_low_shadow) {
-                is_valid_shadow = true;
-            }
-        }
-
-        if(is_valid_shadow) {
-            return true;
-        }
+    // Critérios para uma boa venda:
+    // 1. O corpo deve ser <= 30% do tamanho total do candle.
+    // 2. O corpo não pode estar a menos de 20% da máxima ou da mínima.
+    // 3. O corpo deve estar centralizado entre o pavio superior e inferior, respeitando as distâncias de 20%.
+    if(percentualCorpo <= 30 &&
+       percentualPavioSuperior >= 20 &&
+       percentualPavioInferior >= 20) {
+        // Exibe no console os valores calculados e uma mensagem informando que o candle é bom para venda
+        // Print("Candle atende aos critérios para venda:");
+        // Print("Percentual do Corpo: ", DoubleToString(percentualCorpo, 2), "%");
+        // Print("Percentual do Pavio Superior: ", DoubleToString(percentualPavioSuperior, 2), "%");
+        // Print("Percentual do Pavio Inferior: ", DoubleToString(percentualPavioInferior, 2), "%");
+        return true;
     }
 
-    return false;   // A vela não é um doji centralizado
+    // Caso o candle não atenda aos critérios, exibe uma mensagem no console
+    // Print("Candle NÃO atende aos critérios para venda.");
+    return false;
 }
 
 //+------------------------------------------------------------------+
@@ -433,4 +390,33 @@ void PrintDojiReport() {
     Print("##                                       ");
     Print("##   TOTAL ENCONTRADO: " + IntegerToString(doji_founds_count));
     Print("#########################################################################");
+}
+// Função para calcular as porcentagens do corpo e dos pavios do candle
+void CalcularPercentuaisIndecisao(double open, double high, double low, double close, double &percentualCorpo, double &percentualPavioSuperior, double &percentualPavioInferior, int doji_state) {
+
+    int state = doji_state;
+
+    // Venda
+    if(state == 2) {
+        double tamanhoTotal  = high - low;
+        double corpoCandle   = MathAbs(close - open);
+        double pavioSuperior = high - MathMax(open, close);
+        double pavioInferior = MathMin(open, close) - low;
+
+        percentualCorpo         = (corpoCandle / tamanhoTotal) * 100;
+        percentualPavioSuperior = (pavioSuperior / tamanhoTotal) * 100;
+        percentualPavioInferior = (pavioInferior / tamanhoTotal) * 100;
+    }
+    // Compra
+    else if(state == 1) {
+        double tamanhoTotal  = high - low;              // Tamanho total do candle (máxima - mínima)
+        double corpoCandle   = MathAbs(close - open);   // Tamanho do corpo (fechamento - abertura)
+        double pavioSuperior = high - close;            // Pavio superior (máxima - fechamento)
+        double pavioInferior = open - low;              // Pavio inferior (abertura - mínima)
+
+        // Calculando os percentuais em relação ao tamanho total do candle
+        percentualCorpo         = (corpoCandle / tamanhoTotal) * 100;
+        percentualPavioSuperior = (pavioSuperior / tamanhoTotal) * 100;
+        percentualPavioInferior = (pavioInferior / tamanhoTotal) * 100;
+    }
 }
