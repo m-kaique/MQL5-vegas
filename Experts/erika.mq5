@@ -44,7 +44,7 @@ input double  _perda_maxima    = 0.50;   // Limite de Perda (ex. 1 dólar = 1.0)
 input int     _slippage        = 3;      // Tolerância máxima de slippage (desvio de preço) em pontos
 input double  __spreadMaximo   = 20;     // Spread máximo permitido antes de abrir uma ordem
 input int     _take_profit_int = 20;     // mod take profit
-double        _spreadMaximo    = __spreadMaximo * Point();
+double        _spreadMaximo    = __spreadMaximo * _Point;
 //+------------------------------------------------------------------+
 //|  Variáveis para os indicadores                                   |
 //+------------------------------------------------------------------+
@@ -186,7 +186,7 @@ void OnTick() {
 
                                 // Utiliza a classe CTrade para abrir uma ordem Sell Limit no preço da máxima do candle anterior (CANDLE DE FORÇA)
                                 double lowCandleAnterior = velas[1].low;
-                                double precoVenda        = lowCandleAnterior - (3 * Point());
+                                double precoVenda        = lowCandleAnterior - (3 * _Point);
 
                                 // BID - ASK
                                 double askPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);   // Preço Ask (para compras)
@@ -195,14 +195,14 @@ void OnTick() {
                                                                                            // Verificar se o preço Bid atual é válido
                                 if(bidPrice <= lowCandleAnterior) {
                                     // Definir Stop Loss e Take Profit como exemplos (você pode ajustar conforme sua estratégia)
-                                    double stopLossVenda   = precoVenda + 10 * Point();                 // SL 10 pontos acima
-                                    double takeProfitVenda = precoVenda - _take_profit_int * Point();   // TP 20 pontos abaixo
+                                    double stopLossVenda   = precoVenda + 10 * _Point;                 // SL 10 pontos acima
+                                    double takeProfitVenda = precoVenda - _take_profit_int * _Point;   // TP 20 pontos abaixo
 
                                     // Verifica se o preço BID está dentro do slippage permitido
-                                    if(MathAbs(bidPrice - precoVenda) <= _slippage * Point()) {
+                                    if(MathAbs(bidPrice - precoVenda) <= _slippage * _Point) {
                                         // Enviar a ordem Buy Stop
-                                        if(trade.SellStop(_lotes, precoVenda, _Symbol, 0, takeProfitVenda, ORDER_TIME_GTC, 0, "Sell Stop 3 pontos abaixo do valor Bid da Minima")) {
-                                            Print("Ordem Sell Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
+                                        if(trade.Sell(_lotes, _Symbol, precoVenda, 0, 0, "")) {
+                                            Alert("Ordem Sell Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
                                         } else {
                                             Print("Erro ao enviar ordem Sell Stop: ", trade.ResultRetcode());
                                         }
@@ -258,7 +258,7 @@ void OnTick() {
 
                                 // Utiliza a classe CTrade para abrir uma ordem Buy Limit no preço da máxima do candle anterior (CANDLE DE FORÇA)
                                 double maxCandleAnterior = velas[1].high;
-                                double precoCompra       = maxCandleAnterior + (3 * Point());
+                                double precoCompra       = maxCandleAnterior + (3 * _Point);
                                 // double takeprofit        = CalcularTakeProfit(precoCompra, _lucroDesejado, _lotes);
                                 //  Calcular o Stop Loss para limitar a perda a 0,50 dólares (50 cents)
                                 // double stopLoss = CalcularStopLoss(precoCompra, _perda_maxima, _lotes);
@@ -270,14 +270,14 @@ void OnTick() {
                                                                                            // Verificar se o preço Ask atual é válido
                                 if(askPrice >= maxCandleAnterior) {
                                     // Definir Stop Loss e Take Profit como exemplos (você pode ajustar conforme sua estratégia)
-                                    double stopLossCompra   = precoCompra - 10 * Point();                 // SL 10 pontos abaixo
-                                    double takeProfitCompra = precoCompra + _take_profit_int * Point();   // TP 20 pontos acima
+                                    double stopLossCompra   = precoCompra - 10 * _Point;                 // SL 10 pontos abaixo
+                                    double takeProfitCompra = precoCompra + _take_profit_int * _Point;   // TP 20 pontos acima
 
                                     // Verifica se o preço Ask está dentro do slippage permitido
-                                    if(MathAbs(askPrice - precoCompra) <= _slippage * Point()) {
+                                    if(MathAbs(askPrice - precoCompra) <= _slippage * _Point) {
                                         // Enviar a ordem Buy Stop
-                                        if(trade.BuyStop(_lotes, precoCompra, _Symbol, 0, takeProfitCompra, ORDER_TIME_GTC, 0, "Buy Stop 3 pontos acima do valor Ask da máxima")) {
-                                            Print("Ordem Buy Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
+                                        if(trade.Buy(_lotes, _Symbol, precoCompra, 0, 0, "")) {
+                                            Alert("Ordem Buy Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
                                         } else {
                                             Print("Erro ao enviar ordem Buy Stop: ", trade.ResultRetcode());
                                         }
