@@ -151,8 +151,6 @@ void OnTick() {
                 bool isRedCandle = IsStrongBearishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isRedCandle) {
 
-                    doji_venda_count++;
-
                     /**
                      * VERMELHO: Candle atual tem que ter a abertura no mesmo valor do fechamento
                      * ou abaixo ou um pouco bem pouco acima do fechamento
@@ -223,8 +221,6 @@ void OnTick() {
 
                 bool isGreenCandle = IsStrongBullishCandle(velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
                 if(isGreenCandle) {
-
-                    doji_compra_count++;
 
                     /**
                      * VERDE: Candle atual tem que ter a abertura no mesmo valor do fechamento,
