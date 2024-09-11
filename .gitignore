@@ -15,3 +15,5 @@ Shared Projects
 experts.dat
 *.ex5
 Experts/erika_moving_average.mq5
+Experts/erika.mq5
+Experts/Test_Buy_2.mq5

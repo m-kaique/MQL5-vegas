@@ -195,11 +195,11 @@ void OnTick() {
                                     // Definir Stop Loss e Take Profit como exemplos (você pode ajustar conforme sua estratégia)
                                     double stopLossVenda   = precoVenda + 10 * _Point;                 // SL 10 pontos acima
                                     double takeProfitVenda = precoVenda - _take_profit_int * _Point;   // TP 20 pontos abaixo
-
+                                    double preco_bid       = SymbolInfoDouble(_Symbol, SYMBOL_BID);
                                     // Verifica se o preço BID está dentro do slippage permitido
                                     if(MathAbs(bidPrice - precoVenda) <= _slippage * _Point) {
                                         // Enviar a ordem Buy Stop
-                                        if(trade.Sell(_lotes, _Symbol, precoVenda, 0, 0, "")) {
+                                        if(trade.Sell(_lotes, _Symbol, preco_bid, 0, 0, "")) {
                                             Alert("Ordem Sell Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
                                         } else {
                                             Print("Erro ao enviar ordem Sell Stop: ", trade.ResultRetcode());
@@ -255,6 +255,7 @@ void OnTick() {
                                 // Utiliza a classe CTrade para abrir uma ordem Buy Limit no preço da máxima do candle anterior (CANDLE DE FORÇA)
                                 double maxCandleAnterior = velas[1].high;
                                 double precoCompra       = maxCandleAnterior + (3 * _Point);
+                                double preco_ask         = SymbolInfoDouble(_Symbol, SYMBOL_ASK);   // Obter preço Ask atual
                                 // double takeprofit        = CalcularTakeProfit(precoCompra, _lucroDesejado, _lotes);
                                 //  Calcular o Stop Loss para limitar a perda a 0,50 dólares (50 cents)
                                 // double stopLoss = CalcularStopLoss(precoCompra, _perda_maxima, _lotes);
@@ -272,7 +273,7 @@ void OnTick() {
                                     // Verifica se o preço Ask está dentro do slippage permitido
                                     if(MathAbs(askPrice - precoCompra) <= _slippage * _Point) {
                                         // Enviar a ordem Buy Stop
-                                        if(trade.Buy(_lotes, _Symbol, precoCompra, 0, 0, "")) {
+                                        if(trade.Buy(_lotes, _Symbol, preco_ask, 0, 0, "")) {
                                             Alert("Ordem Buy Stop enviada com sucesso. Ticket: ", trade.ResultOrder());
                                         } else {
                                             Print("Erro ao enviar ordem Buy Stop: ", trade.ResultRetcode());
@@ -317,7 +318,7 @@ bool TemosNovaVela() {
         last_time = lastbar_time;
         return (true);
     }
-    //--- se passarmos desta linha, então a barra não é nova; retornar false
+    //--- se passarmos desta linha, então a barra não é nova; retornar fals
     return (false);
 }
 
