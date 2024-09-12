@@ -61,15 +61,24 @@ void OnTick() {
     bool sell_doji = SellDoji_Signal(
         velas[2].open, velas[2].close, velas[2].high, velas[2].low);
 
-    if(str_candle && buy_doji) {
-        // Print("Oportunidade de COMPRA! ", velas[0].time);
-    }
-
     if(down_candle && sell_doji) {
         Alert("Oportunidade de VENDA! ", velas[0].time);
+        string ObjVenda = "Compra_" + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
+
+        if(ObjectCreate(0, ObjVenda, OBJ_VLINE, 0, velas[0].time, 0)) {
+            ObjectSetInteger(0, ObjVenda, OBJPROP_COLOR, clrIndianRed);
+            ObjectSetInteger(0, ObjVenda, OBJPROP_WIDTH, 3);
+        }
     }
     if(str_candle && buy_doji) {
-        Alert("Oportunidade de VENDA! ", velas[0].time);
+        Alert("Oportunidade de COMPRA! ", velas[0].time);
+
+        string ObjCompra = "Compra_" + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
+
+        if(ObjectCreate(0, ObjCompra, OBJ_VLINE, 0, velas[0].time, 0)) {
+            ObjectSetInteger(0, ObjCompra, OBJPROP_COLOR, clrGreen);
+            ObjectSetInteger(0, ObjCompra, OBJPROP_WIDTH, 3);
+        }
     }
 }
 //+------------------------------------------------------------------+
@@ -90,31 +99,25 @@ bool BuyStrongCandle_Signal(double open, double close, double high, double low, 
     // Abre embaixo, fecha em cima.
 
     if(close > open) {
-        double body_size  = (close - open);
-        double range_size = (high - low);
-
-        bool is_greater_than_doji = range_size >= (doji_high + doji_low);
-        bool is_perfect_body      = body_size >= (range_size * 0.60);
-
+        double body_size            = (close - open);
+        double range_size           = (high - low);
+        bool   is_greater_than_doji = range_size >= (doji_high - doji_low);
+        bool   is_perfect_body      = body_size >= (range_size * 0.60);
         if(is_perfect_body && is_greater_than_doji) {
-            // Print("CA ", velas[1].time, "Open > Close, critério atendido.");
             return true;
         }
     }
-
     return false;
 }
 
 bool BuyDoji_Signal(double open, double close, double high, double low) {
     if(close > open) {
-        double corpo           = MathAbs(close - open);
-        double sombra_superior = high - close;
-        double sombra_inferior = open - low;
-
+        double corpo             = MathAbs(close - open);
+        double sombra_superior   = high - close;
+        double sombra_inferior   = open - low;
         bool   corpo_pequeno     = corpo < (sombra_superior + sombra_inferior) * 0.1;
         double proporcao_sombras = sombra_superior / (sombra_superior + sombra_inferior);
-
-        bool cond_40_60 = corpo_pequeno && proporcao_sombras >= 0.4 && proporcao_sombras <= 0.6;
+        bool   cond_40_60        = corpo_pequeno && proporcao_sombras >= 0.4 && proporcao_sombras <= 0.6;
         return cond_40_60;
     }
     return false;
@@ -127,14 +130,11 @@ bool SellStrongCandle_Signal(double open, double close, double high, double low,
     // Abre Em Cima, fecha em Baixo.
 
     if(open > close) {
-        double body_size  = MathAbs(close - open);
-        double range_size = (high - low);
-
-        bool is_greater_than_doji = range_size >= (doji_high - doji_low);
-        bool is_perfect_body      = body_size >= (range_size * 0.60);
-
+        double body_size            = MathAbs(close - open);
+        double range_size           = (high - low);
+        bool   is_greater_than_doji = range_size >= (doji_high - doji_low);
+        bool   is_perfect_body      = body_size >= (range_size * 0.60);
         if(is_perfect_body && is_greater_than_doji) {
-            // Print("CA ", velas[1].time, "FORÇA BAIXA, critério atendido.");
             return true;
         }
     }
