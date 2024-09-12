@@ -48,11 +48,11 @@ void OnTick() {
 
     // Força Alta
     bool str_candle = BuyStrongCandle_Signal(
-        velas[1].open, velas[1].close, velas[1].high, velas[1].low);
+        velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
 
     // Força Baixa
     bool down_candle = SellStrongCandle_Signal(
-        velas[1].open, velas[1].close, velas[1].high, velas[1].low);
+        velas[1].open, velas[1].close, velas[1].high, velas[1].low, velas[2].high, velas[2].low);
 
     // Doji Alta
     bool buy_doji = BuyDoji_Signal(
@@ -85,7 +85,7 @@ bool IsNewBar() {
 //+------------------------------------------------------------------+
 //| Logica de Compra                                                 |
 //+------------------------------------------------------------------+
-bool BuyStrongCandle_Signal(double open, double close, double high, double low) {
+bool BuyStrongCandle_Signal(double open, double close, double high, double low, double doji_high, double doji_low) {
 
     // Abre embaixo, fecha em cima.
 
@@ -93,9 +93,10 @@ bool BuyStrongCandle_Signal(double open, double close, double high, double low) 
         double body_size  = (close - open);
         double range_size = (high - low);
 
-        bool is_perfect_body = body_size >= (range_size * 0.60);
+        bool is_greater_than_doji = range_size >= (doji_high + doji_low);
+        bool is_perfect_body      = body_size >= (range_size * 0.60);
 
-        if(is_perfect_body) {
+        if(is_perfect_body && is_greater_than_doji) {
             // Print("CA ", velas[1].time, "Open > Close, critério atendido.");
             return true;
         }
@@ -121,7 +122,7 @@ bool BuyDoji_Signal(double open, double close, double high, double low) {
 //+------------------------------------------------------------------+
 //| Logica de Venda                                                  |
 //+------------------------------------------------------------------+
-bool SellStrongCandle_Signal(double open, double close, double high, double low) {
+bool SellStrongCandle_Signal(double open, double close, double high, double low, double doji_high, double doji_low) {
 
     // Abre Em Cima, fecha em Baixo.
 
@@ -129,9 +130,10 @@ bool SellStrongCandle_Signal(double open, double close, double high, double low)
         double body_size  = MathAbs(close - open);
         double range_size = (high - low);
 
-        bool is_perfect_body = body_size >= (range_size * 0.60);
+        bool is_greater_than_doji = range_size >= (doji_high - doji_low);
+        bool is_perfect_body      = body_size >= (range_size * 0.60);
 
-        if(is_perfect_body) {
+        if(is_perfect_body && is_greater_than_doji) {
             // Print("CA ", velas[1].time, "FORÇA BAIXA, critério atendido.");
             return true;
         }
@@ -150,7 +152,6 @@ bool SellDoji_Signal(double open, double close, double high, double low) {
         double proporcao_sombras = sombra_superior / (sombra_superior + sombra_inferior);
 
         bool cond_40_60 = corpo_pequeno && proporcao_sombras >= 0.4 && proporcao_sombras <= 0.6;
-        // Print("DOJI Venda ", velas[2].time, "Open > Close, critério atendido.");
         return cond_40_60;
     }
     return false;
