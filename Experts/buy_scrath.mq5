@@ -14,12 +14,12 @@ MqlRates velas[];
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
-    //---
+    //--- Config Gráfico
     ChartSetInteger(0, CHART_SHOW_GRID, false);
     ChartSetInteger(0, CHART_MODE, CHART_CANDLES);
     ChartSetInteger(0, CHART_COLOR_BACKGROUND, clrBlack);
     ChartSetInteger(0, CHART_COLOR_FOREGROUND, clrWhite);
-    ChartSetInteger(0, CHART_COLOR_CANDLE_BULL, clrLightGreen);
+    ChartSetInteger(0, CHART_COLOR_CANDLE_BULL, clrLimeGreen);
     ChartSetInteger(0, CHART_COLOR_CHART_UP, clrSkyBlue);
     ChartSetInteger(0, CHART_COLOR_CANDLE_BEAR, clrRed);
     ChartSetInteger(0, CHART_COLOR_CHART_DOWN, clrIndianRed);
@@ -61,26 +61,30 @@ void OnTick() {
     bool sell_doji = SellDoji_Signal(
         velas[2].open, velas[2].close, velas[2].high, velas[2].low);
 
+    // FORÇA DE BAIXA + SELL DOJI
     if(down_candle && sell_doji) {
         Alert("Oportunidade de VENDA! ", velas[0].time);
-        string ObjVenda = "Compra_" + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
-
+        // V Line
+        string ObjVenda = "Venda: " + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
         if(ObjectCreate(0, ObjVenda, OBJ_VLINE, 0, velas[0].time, 0)) {
-            ObjectSetInteger(0, ObjVenda, OBJPROP_COLOR, clrIndianRed);
+            ObjectSetInteger(0, ObjVenda, OBJPROP_COLOR, clrRed);
             ObjectSetInteger(0, ObjVenda, OBJPROP_WIDTH, 3);
         }
     }
+
+    // FORÇA DE ALTA + BUY DOJI
     if(str_candle && buy_doji) {
         Alert("Oportunidade de COMPRA! ", velas[0].time);
-
-        string ObjCompra = "Compra_" + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
-
+        // V Line
+        string ObjCompra = "Compra: " + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
         if(ObjectCreate(0, ObjCompra, OBJ_VLINE, 0, velas[0].time, 0)) {
-            ObjectSetInteger(0, ObjCompra, OBJPROP_COLOR, clrGreen);
+            ObjectSetInteger(0, ObjCompra, OBJPROP_COLOR, clrLimeGreen);
             ObjectSetInteger(0, ObjCompra, OBJPROP_WIDTH, 3);
         }
     }
 }
+//+------------------------------------------------------------------+
+//| Checa Nova Barra                                                 |
 //+------------------------------------------------------------------+
 bool IsNewBar() {
     int bars = Bars(_Symbol, PERIOD_CURRENT);
