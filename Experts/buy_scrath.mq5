@@ -10,6 +10,9 @@
 int      OldNumBars;
 MqlRates velas[];
 
+int vendas  = 0;
+int compras = 0;
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -34,6 +37,9 @@ int OnInit() {
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason) {
     //---
+    Print("Finalizando Expert Advisor.");
+    Print("Total de Possíveis Compras: ", (string)compras);
+    Print("Total de Possíveis Vendas: ", (string)vendas);
 }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
@@ -61,27 +67,51 @@ void OnTick() {
     bool sell_doji = SellDoji_Signal(
         velas[2].open, velas[2].close, velas[2].high, velas[2].low);
 
+    // Doji Coringa
+    bool coringa_doji = IsDojiCoringa(
+        velas[2].open, velas[2].close, velas[2].high, velas[2].low);
+
     // FORÇA DE BAIXA + SELL DOJI
-    if(down_candle && sell_doji) {
-        Alert("Oportunidade de VENDA! ", velas[0].time);
-        // V Line
-        string ObjVenda = "Venda: " + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
-        if(ObjectCreate(0, ObjVenda, OBJ_VLINE, 0, velas[0].time, 0)) {
-            ObjectSetInteger(0, ObjVenda, OBJPROP_COLOR, clrRed);
-            ObjectSetInteger(0, ObjVenda, OBJPROP_WIDTH, 3);
+    if(is_sell_possible(velas[0].open, velas[1].close)) {
+        if((down_candle && sell_doji) || (down_candle && coringa_doji)) {
+            vendas++;
+            Alert("Oportunidade de VENDA! ", velas[0].time);
+            //  V Line
+            string ObjVenda = "Venda: " + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
+            if(ObjectCreate(0, ObjVenda, OBJ_VLINE, 0, velas[0].time, 0)) {
+                ObjectSetInteger(0, ObjVenda, OBJPROP_COLOR, clrRed);
+                ObjectSetInteger(0, ObjVenda, OBJPROP_WIDTH, 3);
+            }
         }
     }
 
     // FORÇA DE ALTA + BUY DOJI
-    if(str_candle && buy_doji) {
-        Alert("Oportunidade de COMPRA! ", velas[0].time);
-        // V Line
-        string ObjCompra = "Compra: " + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
-        if(ObjectCreate(0, ObjCompra, OBJ_VLINE, 0, velas[0].time, 0)) {
-            ObjectSetInteger(0, ObjCompra, OBJPROP_COLOR, clrLimeGreen);
-            ObjectSetInteger(0, ObjCompra, OBJPROP_WIDTH, 3);
+    if(is_buy_possible(velas[0].open, velas[1].close)) {
+        // se compra valida.
+        if((str_candle && buy_doji) || (str_candle && coringa_doji)) {
+            compras++;
+            Alert("Oportunidade de COMPRA! ", velas[0].time);
+            //  V Line
+            string ObjCompra = "Compra: " + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
+            if(ObjectCreate(0, ObjCompra, OBJ_VLINE, 0, velas[0].time, 0)) {
+                ObjectSetInteger(0, ObjCompra, OBJPROP_COLOR, clrLimeGreen);
+                ObjectSetInteger(0, ObjCompra, OBJPROP_WIDTH, 3);
+            }
         }
     }
+
+    // DOJI CORINGA
+    /*
+    if(coringa_doji) {
+        // Alert("Coringa!  ", velas[2].time);
+        //   V Line
+        string ObjCoringa = "Coringa: " + TimeToString(velas[2].time, TIME_DATE | TIME_MINUTES);
+        if(ObjectCreate(0, ObjCoringa, OBJ_VLINE, 0, velas[2].time, 0)) {
+            ObjectSetInteger(0, ObjCoringa, OBJPROP_COLOR, clrWhite);
+            ObjectSetInteger(0, ObjCoringa, OBJPROP_WIDTH, 1);
+        }
+    }
+    */
 }
 //+------------------------------------------------------------------+
 //| Checa Nova Barra                                                 |
@@ -157,6 +187,43 @@ bool SellDoji_Signal(double open, double close, double high, double low) {
 
         bool cond_40_60 = corpo_pequeno && proporcao_sombras >= 0.4 && proporcao_sombras <= 0.6;
         return cond_40_60;
+    }
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Doji Coringa                                                     |
+//+------------------------------------------------------------------+
+bool IsDojiCoringa(double open, double close, double high, double low) {
+    if(close == open) {
+        double corpo             = MathAbs(close - open);
+        double sombra_superior   = high - open;
+        double sombra_inferior   = close - low;
+        double proporcao_sombras = sombra_superior / (sombra_superior + sombra_inferior);
+
+        return proporcao_sombras >= 0.4 && proporcao_sombras <= 0.6;
+    }
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Liberação Para Compra                                            |
+//+------------------------------------------------------------------+
+bool is_buy_possible(double open_atual, double close_anterior) {
+    bool tolerance = MathAbs(open_atual - close_anterior) <= (1 * _Point);
+    if((open_atual >= close_anterior) || tolerance) {
+        return true;
+    }
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Liberação Para Venda                                             |
+//+------------------------------------------------------------------+
+bool is_sell_possible(double open_atual, double close_anterior) {
+    bool tolerance = MathAbs(close_anterior - open_atual) <= (1 * _Point);
+    if((open_atual <= close_anterior) || tolerance) {
+        return true;
     }
     return false;
 }
