@@ -18,6 +18,22 @@ int    RSIHandle;
 int    OldNumBars;
 double RSIBuffer[];
 
+// MM
+//-----------Médias Móveis-------------
+int                mm_rapida_periodo = 9;                // Periodo Média Rápida
+int                mm_lenta_periodo  = 21;               // Periodo Média Lenta
+ENUM_TIMEFRAMES    mm_tempo_grafico  = PERIOD_CURRENT;   // Tempo Gráfico
+ENUM_MA_METHOD     mm_metodo         = MODE_EMA;         // Método
+ENUM_MA_METHOD     mm_metodo_lenta   = MODE_SMMA;        // Método
+ENUM_APPLIED_PRICE mm_preco          = PRICE_OPEN;       // Preço Aplicado
+//
+int    mm_rapida_Handle;     // Handle controlador da média móvel rápida
+double mm_rapida_Buffer[];   // Buffer para armazenamento dos dados das médias
+
+// LENTA - maior período
+int    mm_lenta_Handle;     // Handle controlador da média móvel lenta
+double mm_lenta_Buffer[];   // Buffer para armazenamento dos dados das médias
+
 // Variáveis de Velas
 MqlRates velas[];
 
@@ -44,6 +60,17 @@ int OnInit() {
     //
     RSIHandle = iRSI(_Symbol, PERIOD_CURRENT, 14, PRICE_CLOSE);
     ArraySetAsSeries(RSIBuffer, true);
+
+    //
+    mm_rapida_Handle = iMA(_Symbol, mm_tempo_grafico, mm_rapida_periodo, 0, mm_metodo, mm_preco);
+    mm_lenta_Handle  = iMA(_Symbol, mm_tempo_grafico, mm_lenta_periodo, 0, mm_metodo_lenta, mm_preco);
+    //
+    if(mm_rapida_Handle < 0 || mm_lenta_Handle < 0) {
+        Alert("Erro ao tentar criar Handles para o indicador - erro: ", GetLastError(), "!");
+        return (-1);
+    }
+    ChartIndicatorAdd(0, 0, mm_rapida_Handle);
+    ChartIndicatorAdd(0, 0, mm_lenta_Handle);
     //
     return (INIT_SUCCEEDED);
 }
@@ -98,7 +125,7 @@ void OnTick() {
             //---
             vendas++;
             //---
-            show_rsi_log(__SELL, velas[0].time, RSIBuffer[0], RSIBuffer[1], RSIBuffer[2]);
+            // show_rsi_log(__SELL, velas[0].time, RSIBuffer[0], RSIBuffer[1], RSIBuffer[2]);
             draw_v_line(__SELL, velas[0].time);
         }
     }
@@ -109,7 +136,7 @@ void OnTick() {
             //---
             compras++;
             //---
-            show_rsi_log(__BUY, velas[0].time, RSIBuffer[0], RSIBuffer[1], RSIBuffer[2]);
+            // show_rsi_log(__BUY, velas[0].time, RSIBuffer[0], RSIBuffer[1], RSIBuffer[2]);
             draw_v_line(__BUY, velas[0].time);
         }
     }
@@ -151,7 +178,7 @@ bool BuyStrongCandle_Signal(double open, double close, double high, double low, 
         double body_size  = (close - open);
         double range_size = (high - low);
         //---
-        bool is_greater_than_doji = range_size >= (doji_high - doji_low);
+        bool is_greater_than_doji = range_size >= ((doji_high - doji_low) * 1.25);
         bool is_perfect_body      = body_size >= (range_size * 0.60);
         //---
         if(is_perfect_body && is_greater_than_doji) {
@@ -172,7 +199,7 @@ bool SellStrongCandle_Signal(double open, double close, double high, double low,
         double body_size  = MathAbs(close - open);
         double range_size = (high - low);
         //---
-        bool is_greater_than_doji = range_size >= (doji_high - doji_low);
+        bool is_greater_than_doji = range_size >= ((doji_high - doji_low) * 1.25);
         bool is_perfect_body      = body_size >= (range_size * 0.60);
         //---
         if(is_perfect_body && is_greater_than_doji) {
@@ -194,7 +221,7 @@ bool BuyDoji_Signal(double open, double close, double high, double low) {
         double sombra_inferior   = open - low;
         bool   corpo_pequeno     = corpo < (sombra_superior + sombra_inferior) * 0.1;
         double proporcao_sombras = sombra_superior / (sombra_superior + sombra_inferior);
-        bool   cond_40_60        = corpo_pequeno && proporcao_sombras >= 0.4 && proporcao_sombras <= 0.6;
+        bool   cond_40_60        = corpo_pequeno && proporcao_sombras >= 0.35 && proporcao_sombras <= 0.65;
         //---
         return cond_40_60;
     }
@@ -213,7 +240,7 @@ bool SellDoji_Signal(double open, double close, double high, double low) {
         //---
         bool   corpo_pequeno     = corpo < (sombra_superior + sombra_inferior) * 0.1;
         double proporcao_sombras = sombra_superior / (sombra_superior + sombra_inferior);
-        bool   cond_40_60        = corpo_pequeno && proporcao_sombras >= 0.4 && proporcao_sombras <= 0.6;
+        bool   cond_40_60        = corpo_pequeno && proporcao_sombras >= 0.35 && proporcao_sombras <= 0.65;
         //---
         return cond_40_60;
     }
@@ -268,9 +295,10 @@ void show_rsi_log(TradeType type, datetime candle_time, double rsi_atual, double
     //---
     string trade_str = (type == __BUY) ? "Compra" : "Venda";
     //---
-    Print("+-------------------------------------+");
-    Alert("Oportunidade de ", trade_str, ", em ", candle_time);
-    Print("+-------------------------------------+");
+    /* Print("+-------------------------------------+");
+     Alert("Oportunidade de ", trade_str, ", em ", candle_time);
+     Print("+-------------------------------------+");
+     */
     Print("RSI Atual: ", rsi_atual);
     Print("RSI Força: ", rsi_forca);
     Print("RSI Doji: ", rsi_doji);
@@ -283,11 +311,14 @@ void draw_v_line(TradeType type, datetime candle_time) {
     //---
     string trade_str   = (type == __BUY) ? "Compra" : "Venda";
     color  trade_color = (type == __BUY) ? clrLimeGreen : clrRed;
-    string ObjVenda    = trade_str + " " + TimeToString(velas[0].time, TIME_DATE | TIME_MINUTES);
+    string ObjVenda    = trade_str + " " + TimeToString(candle_time, TIME_DATE | TIME_MINUTES);
     //
-    if(ObjectCreate(0, ObjVenda, OBJ_VLINE, 0, candle_time, 0)) {
+    if(ObjectCreate(0, ObjVenda, OBJ_VLINE, 0, velas[0].time, 0)) {
+        Print(candle_time);
         //---
         ObjectSetInteger(0, ObjVenda, OBJPROP_COLOR, trade_color);
-        ObjectSetInteger(0, ObjVenda, OBJPROP_WIDTH, 3);
+        ObjectSetInteger(0, ObjVenda, OBJPROP_WIDTH, 1);
+
+        Print("Oportunidade de, ", trade_str, " em ", TimeToString(candle_time));
     }
 }
